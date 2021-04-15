@@ -1,0 +1,9 @@
+# Exclude data folder
+/data/*
+
+# Exclude RStudio files
+.RData
+.Rhistory
+
+# Exclude Mac specific files
+.DS_Store
