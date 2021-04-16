@@ -7,3 +7,6 @@
 
 # Exclude Mac specific files
 .DS_Store
+
+# Exclude ff folder
+/ffdf/*
