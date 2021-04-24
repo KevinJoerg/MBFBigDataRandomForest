@@ -2,6 +2,8 @@ library(data.table)
 library(ff)
 library(ffbase)
 library(pryr)
+library(leaflet)
+library(leaflet.extras)
 
 # Set wd
 setwd("~/Documents/MBF/2. Semester/BigData/MBFBigDataRandomForest")
@@ -36,11 +38,52 @@ carListings <- read.csv.ffdf(file= carListings.path,
 # Saving it this way names the files by colnames
 save.ffdf(carListings, dir = './ffdf')
 
+# Load voting data
+votingdata.path <- 'data/PRESIDENT_precinct_general.csv'
+# votingdata <-
 
 # From here actually start *****************************************************
-load.ffdf(dir='./ffdf')
-
+load.ffdf(dir='./ffdf')''
+colnames(carListings)
 
 mem_used()
 
-#####
+# Create a map to show distributions of car listings 
+
+# Leaflet needs numeric vectors
+lat <- carListings[['latitude']][]
+long <- carListings[['longitude']][]
+
+samp <- sample(1:3000000, 10000)
+lat <- lat[samp]
+long <- long[samp]
+
+# Simple visualization
+map <- leaflet() %>%
+  # Set view on center of properties
+  setView(lng = mean(long), lat = mean(lat), zoom = 4) %>%
+  # Add a custom base map
+  addProviderTiles(providers$Stamen.TonerLite)
+
+# Add the data points as circles on the map, also add a legend
+map <- addCircles(map, lng = long,
+                  lat = lat,
+                  radius = 400,
+                  stroke = F, fillOpacity = 0.45, fill = T, 
+                  fillColor =  "red")
+
+# Show the map
+map
+
+
+
+
+
+
+
+
+
+
+
+
+
