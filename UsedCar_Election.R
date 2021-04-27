@@ -39,12 +39,12 @@ carListings <- read.csv.ffdf(file= carListings.path,
                              colClasses=NA)
 
 # Saving it this way names the files by colnames
-save.ffdf(carListings, dir = './ffdf')
+save.ffdf(carListings, dir = './ffdf', overwrite = TRUE)
 
 # From here actually start if data are prepared ********************************
 
 # Load prepared car data (to continue from here)
-# load.ffdf(dir='./ffdf')
+load.ffdf(dir='./ffdf')
 
 # Load voting data
 votingdata.path <- 'data/PRESIDENT_precinct_general.csv'
@@ -86,7 +86,7 @@ counties_of_coordinates <- data.frame(counties_of_coordinates) %>%
   'names<-'(c('state', 'county'))
 
 # Join voting ratio to car data by county, append columns to ffdf
-counties_of_cord_with_ratio <- left_join(counties_of_cord, votingdata.ratio, by='county')
+counties_of_cord_with_ratio <- left_join(counties_of_coordinates, votingdata.ratio, by='county')
 carListings$state <- as.ff(factor(counties_of_cord_with_ratio[, 1]))
 carListings$county <- as.ff(factor(counties_of_cord_with_ratio[, 2]))
 carListings$DemRepRatio <- as.ff(as.numeric(counties_of_cord_with_ratio[, 3]))
@@ -96,7 +96,7 @@ carListingsClean <- carListings[!is.na(carListings$DemRepRatio)]
 
 # Save this clean ffdf
 system("mkdir ffdfClean")
-save.ffdf(carListingsClean, dir = './ffdfClean')
+save.ffdf(carListingsClean, dir = './ffdfClean', overwrite = TRUE)
 
 ## Analysis ********************************************************************
 
