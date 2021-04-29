@@ -15,10 +15,10 @@ library(jvamisc)
 
 rm(list = ls())
 
-wd_kevin <- '~/Documents/MBF/2. Semester/BigData/MBFBigDataRandomForest'
-
-# Set wd
-setwd(wd_kevin)
+# set wd to where the source file is
+# make sure you have the datafiles in a /data/ folder
+setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
+getwd()
 
 
 # Prepare for loading with ff, read in Used Car CSV ****************************
@@ -41,10 +41,12 @@ carListings <- read.csv.ffdf(file= carListings.path,
 # Saving it this way names the files by colnames
 save.ffdf(carListings, dir = './ffdf', overwrite = TRUE)
 
-# From here actually start if data are prepared ********************************
+# From here actually start if data is prepared ********************************
 
 # Load prepared car data (to continue from here)
 load.ffdf(dir='./ffdf')
+
+head(carListings)
 
 # Load voting data
 votingdata.path <- 'data/PRESIDENT_precinct_general.csv'
@@ -53,8 +55,10 @@ votingdata <- fread(votingdata.path)
 # Aggregate voting data to county level democratic / republican ratio **********
 
 # Add up votes of counties
-votingdata.bycounty <- votingdata %>% group_by(county_name, party_simplified) %>% 
-  summarise(votes = sum(votes)) %>% ungroup
+votingdata.bycounty <- votingdata %>% 
+  group_by(county_name, party_simplified) %>% 
+  summarise(votes = sum(votes)) %>%
+  ungroup
 
 # Unaffiliated candidates have empty label, change to NOPARTY
 votingdata.bycounty[votingdata.bycounty[, 'party_simplified'] == "", 'party_simplified'] <- 'NOPARTY'
