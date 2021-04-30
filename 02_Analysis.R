@@ -1,13 +1,14 @@
 library(data.table)
 library(ff)
 library(ffbase)
+library(ffbase2)
+# devtools::install_github("edwindj/ffbase2")
 library(pryr)
 library(dplyr)
 library(tidyr)
 library(biglm)
 library(stringr)
-
-
+library(lobstr)
 
 rm(list = ls())
 
@@ -26,13 +27,16 @@ setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 # Load the clean data
 load.ffdf(dir='./ffdfClean')
 
-# check RAM allocation
-pryr::object_size(carListingsClean)
-
 # convert to df
 carListings.df <- data.frame(carListingsClean)
+
+# check RAM allocation
+pryr::object_size(carListings.df)
+pryr::object_size(carListingsClean)
+
 remove(carListingsClean)
 
+cat(tracemem(carListings.df), "\n")
 
 ### DATA CLEANING ### -------------------------------------------
 
@@ -76,7 +80,7 @@ colnames <- c(vin = 'character',
               latitude  = 'numeric', 
               length = 'numeric', 
               listed_date = 'date', 
-              listing_color  = 'factor', #could be taken as alternatives for colors
+              listing_color  = 'factor', # could be taken as alternatives for colors
               listing_id  = 'numeric', 
               longitude = 'numeric', 
               main_picture_url = 'character', 
@@ -126,7 +130,7 @@ for (i in colnames(carListings.df)) {
 str(carListings.df)
 
 # let us omit more variables we don't want
-omit <- c('vin', 'description', 'listing_id', 'main_picture_url', 'sp_id', 'sp_name', 
+omit <- c('vin', 'description', 'dealer_zip', 'listing_id', 'main_picture_url', 'sp_id', 'sp_name', 
           'transmission_display',  'trimId', 'trim_name', 'wheel_system_display', 
           'exterior_color', 'interior_color', # as we already account for other color
          'franchise_make', # as we already account for the brand
@@ -134,6 +138,13 @@ omit <- c('vin', 'description', 'listing_id', 'main_picture_url', 'sp_id', 'sp_n
          'model_name' # too many options
 )
 carListings.df <- carListings.df %>% select(-omit)
+
+# rename columns to make it clear where the data comes from
+carListings.df <- carListings.df %>% rename(
+  DemRep_state = state, 
+  DemRep_county = county
+)
+
 
 # separate variable "power" into "hp" and into "RPM"
 list <- (str_split(carListings.df$power, " "))
@@ -145,7 +156,7 @@ tail(carListings.df$horsepower)
 tail(carListings.df$hp)
 head(carListings.df$horsepower)
 head(carListings.df$hp)
-carListings.df <- carListings.df %>% select(-hp)
+carListings.df <- carListings.df %>% dplyr::select(-hp)
 
 # as lapply doesn't work with errors, we write our own function to ignore those errors
 testFunction <- function (x) {
@@ -153,44 +164,65 @@ testFunction <- function (x) {
 
 rpm <- lapply(list, testFunction)
 carListings.df$rpm <- as.numeric(str_replace(rpm, ",", ""))
+carListings.df <- carListings.df %>% dplyr::select(-power)
 
 # separate number from ".. in" in the variable "wheelbase"
 head(carListings.df$wheelbase)
 list <- str_split(carListings.df$wheelbase, " in")
 carListings.df$wheelbase <- as.numeric(lapply(list, '[[', 1))
 
-# simplify engine_cylinders
+# simplify engine_cylinders by allowing for less variations
 head(carListings.df$engine_cylinders)
 list <- str_split(carListings.df$engine_cylinders, " ")
 carListings.df$engine_cylinders <- as.factor(as.character(lapply(list, '[[', 1)))
+
+# from Date to Month and Year
+carListings.df$month <- month(carListings.df$listed_date)
+carListings.df$year <- year(carListings.df$listed_date)
+
 
 # remove unnecessary variables
 remove(list, rpm, colnames, count_nas, i, omit, sorted, testFunction)
 
 
-
-# create directory for ff chunks, and assign directory to ff 
-system("mkdir ffdf_tim")
-options(fftempdir = "ffdf_tim")
-
-# Saving it this way names the files by colnames
-carListings.ffdf <- as.ffdf(carListings.df %>% mutate_if(is.character, as.factor))
-save.ffdf(carListings.ffdf, dir = './ffdf_tim', overwrite = TRUE)
-
-load.ffdf(dir='./ffdf_tim')
-load.ffdf(dir = './ffdf')
+# # create directory for ff chunks, and assign directory to ff 
+# system("mkdir ffdf_tim")
+# options(fftempdir = "ffdf_tim")
+# 
+# # Saving it this way names the files by colnames
+# carListings.ffdf <- as.ffdf(carListings.df %>% mutate_if(is.character, as.factor))
+# save.ffdf(carListings.ffdf, dir = './ffdf_tim', overwrite = TRUE)
+# 
+# load.ffdf(dir='./ffdf_tim')
+# load.ffdf(dir = './ffdf')
 
 
 ### Regression ### -----------------------------------------
+library(speedglm)
+library(biglm)
 
-# simple lm won't works
-lm(DemRepRatio ~ price, data = carListings.df)
+carListings.short <- na.omit(carListings.df)
+
+str(carListings.df)
+
+# simple lm will work
+summary(lm(DemRepRatio ~ price + mileage + horsepower + transmission, data = carListings.df))
 # however not for the whole dataset as the vector memory gets exhausted 
 lm(DemRepRatio ~ ., data = carListings.df)
+
+
+# speed glm aslo exhausts the limit
+speedlm(DemRepRatio ~., data= carListings.df)
+#cp(as.matrix(carListings.df), row.chunk = 1000) # in order for this to work, the dat needs to be a matrix with only numerics
+
+
+summary(bigglm(DemRepRatio ~ price + mileage + horsepower + transmission, data = carListings.df))
+
 
 # neither does bigglm work for a single predicter
 bigglm.ffdf(as.numeric(carListings.df$DemRepRatio) ~ as.numeric(carListings.df$price), data = carListings.df)
 
+str(carListings.df)
 
 
 ### BACKUP ### ---------------------------------
