@@ -25,14 +25,13 @@ setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 
 # Load the clean data
 load.ffdf(dir='./ffdfClean')
-head(carListingsClean)
-summary(carListingsClean)
 
 # check RAM allocation
 pryr::object_size(carListingsClean)
 
 # convert to df
 carListings.df <- data.frame(carListingsClean)
+remove(carListingsClean)
 
 
 ### DATA CLEANING ### -------------------------------------------
@@ -51,9 +50,6 @@ omit <- names(which(sorted>=0.2))
 carListings.df <- carListings.df %>% select(-omit)
 remove(omit)
 
-# check dataframe again
-str(carListings.df)
-
 # let us clean and convert the variables correctly
 colnames <- c(vin = 'character', 
               back_legroom = 'numeric', 
@@ -63,53 +59,52 @@ colnames <- c(vin = 'character',
               daysonmarket = 'numeric', 
               dealer_zip = 'numeric',
               description = 'character',
-              engine_cylinders = 'character',
-              engine_displacement = 'numeric', 
-              engine_type = 'numeric', 
-              exterior_color = 'character', 
+              engine_cylinders = 'factor', # should be separated
+              engine_displacement = 'numeric', # ?
+              engine_type = 'numeric', # ?
+              exterior_color = 'factor', # should be broken down
               franchise_dealer = 'boolean', 
-              franchise_make = 'character', 
+              franchise_make = 'factor', # either this or make_name
               front_legroom  = 'numeric', 
               fuel_tank_volume  = 'numeric', 
-              fuel_type = 'character', 
+              fuel_type = 'factor', 
               height = 'numeric', 
               highway_fuel_economy = 'numeric', 
               horsepower = 'numeric', 
-              interior_color = 'character', 
+              interior_color = 'character', # should be broken down
               is_new  = 'boolean', 
               latitude  = 'numeric', 
               length = 'numeric', 
               listed_date = 'date', 
-              listing_color  = 'character', 
+              listing_color  = 'factor', #could be taken as alternatives for colors
               listing_id  = 'numeric', 
               longitude = 'numeric', 
               main_picture_url = 'character', 
-              major_options = 'character', 
-              make_name = 'character', 
+              major_options = 'character', # should be separated
+              make_name = 'factor', # either this or franchise_make
               maximum_seating = 'numeric', 
               mileage = 'numeric', 
-              model_name = 'character', 
-              power = 'character', 
+              model_name = 'character', # too many
+              power = 'character', # should be split in multiple
               price = 'numeric', 
-              savings_amount = 'numeric', 
+              savings_amount = 'numeric', # ?
               seller_rating = 'numeric', 
               sp_id = 'numeric', 
               sp_name = 'character', 
               torque = 'numeric', 
               transmission = 'factor', 
-              transmission_display = 'character', 
+              transmission_display = 'character', # can be omitted as we already have transmission 
               trimId = 'numeric', 
               trim_name = 'character', 
               wheel_system = 'factor', 
-              wheel_system_display = 'factor', 
-              wheelbase = 'character', 
+              wheel_system_display = 'factor', # can be omitted 
+              wheelbase = 'character', # needs to be separated
               width = 'numeric', 
               year = 'numeric', 
               state = 'factor', 
-              county = 'factor', 
+              county = 'character', # too many
               DemRepRatio = 'numeric'
 )
-
 
 # make conversions
 for (i in colnames(carListings.df)) {
@@ -131,38 +126,70 @@ for (i in colnames(carListings.df)) {
 str(carListings.df)
 
 # let us omit more variables we don't want
-omit <- c('vin', 'description', 'listing_id', 'main_picture_url', 'sp_id', 'sp_name', 'trimId', 'trim_name')
+omit <- c('vin', 'description', 'listing_id', 'main_picture_url', 'sp_id', 'sp_name', 
+          'transmission_display',  'trimId', 'trim_name', 'wheel_system_display', 
+          'exterior_color', 'interior_color', # as we already account for other color
+         'franchise_make', # as we already account for the brand
+         'major_options', # too detailed
+         'model_name' # too many options
+)
 carListings.df <- carListings.df %>% select(-omit)
 
 # separate variable "power" into "hp" and into "RPM"
-carListings.df$power
 list <- (str_split(carListings.df$power, " "))
 carListings.df$hp <- as.numeric(lapply(list, '[[', 1))
 
-# but this is basically the same, so we can delete $hp
+# but these are almost the same, so we can delete $hp
+identical(carListings.df[['horsepower']],carListings.df[['hp']])
+tail(carListings.df$horsepower)
+tail(carListings.df$hp)
 head(carListings.df$horsepower)
 head(carListings.df$hp)
+carListings.df <- carListings.df %>% select(-hp)
 
-# as lapply doesn't work with erros, we write our own function to ignore those errors
+# as lapply doesn't work with errors, we write our own function to ignore those errors
 testFunction <- function (x) {
-  return(tryCatch("[["(x, 4), error=function(e) NULL))
-}
+  return(tryCatch("[["(x, 4), error=function(e) NULL))}
 
 rpm <- lapply(list, testFunction)
 carListings.df$rpm <- as.numeric(str_replace(rpm, ",", ""))
 
-
-
-
 # separate number from ".. in" in the variable "wheelbase"
+head(carListings.df$wheelbase)
+list <- str_split(carListings.df$wheelbase, " in")
+carListings.df$wheelbase <- as.numeric(lapply(list, '[[', 1))
+
+# simplify engine_cylinders
+head(carListings.df$engine_cylinders)
+list <- str_split(carListings.df$engine_cylinders, " ")
+carListings.df$engine_cylinders <- as.factor(as.character(lapply(list, '[[', 1)))
+
+# remove unnecessary variables
+remove(list, rpm, colnames, count_nas, i, omit, sorted, testFunction)
 
 
-# simple lm works
+
+# create directory for ff chunks, and assign directory to ff 
+system("mkdir ffdf_tim")
+options(fftempdir = "ffdf_tim")
+
+# Saving it this way names the files by colnames
+carListings.ffdf <- as.ffdf(carListings.df %>% mutate_if(is.character, as.factor))
+save.ffdf(carListings.ffdf, dir = './ffdf_tim', overwrite = TRUE)
+
+load.ffdf(dir='./ffdf_tim')
+load.ffdf(dir = './ffdf')
+
+
+### Regression ### -----------------------------------------
+
+# simple lm won't works
+lm(DemRepRatio ~ price, data = carListings.df)
+# however not for the whole dataset as the vector memory gets exhausted 
 lm(DemRepRatio ~ ., data = carListings.df)
-# however not for the whole dataset
-lm(DemRepRatio ~ ., data = carListings.df)
+
 # neither does bigglm work for a single predicter
-bigglm.ffdf(as.numeric(carListingsClean$DemRepRatio) ~ as.numeric(carListingsClean$price), data = carListings.df, chunksize = 1000)
+bigglm.ffdf(as.numeric(carListings.df$DemRepRatio) ~ as.numeric(carListings.df$price), data = carListings.df)
 
 
 
