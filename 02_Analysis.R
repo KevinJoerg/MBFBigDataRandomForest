@@ -49,6 +49,12 @@ sorted <- rev(sort(count_nas))
 barplot(sorted, cex.names = 0.5, las = 2)
 title(main = '% NAs in used cars data')
 
+# quick plot of NAs
+count_nas <- colSums(is.na(carListings.df))/nrow(carListings.df)
+sorted <- rev(sort(count_nas))
+barplot(sorted, cex.names = 0.5, las = 2)
+title(main = '% NAs in used cars data')
+
 # drop all variables for which we have less than 50% observations
 omit <- names(which(sorted>=0.2))
 carListings.df <- carListings.df %>% select(-omit)
@@ -298,3 +304,153 @@ str(carListings.df)
 #               county = 'factor', 
 #               DemRepRatio = 'numeric'
 # )
+
+
+#*******************************************************************************
+# Data cleaning with ffdf
+
+# convert all "" to NAs
+carListingsClean <- update(carListingsClean, as.ffdf(carListingsClean[] %>% mutate_all(na_if,"")))
+
+# quick plot of NAs
+count_nas <- (as.numeric(lapply(physical(carListingsClean), FUN=function(x) sum(is.na(x))))/nrow(carListingsClean)) %>%
+  'names<-'(names(carListingsClean))
+sorted <- rev(sort(count_nas))
+barplot(sorted, cex.names = 0.5, las = 2)
+title(main = '% NAs in used cars data')
+
+# drop all variables for which we have less than 80% observations
+omit <- names(which(sorted>=0.2))
+for (column in omit) {carListingsClean[[column]] <- NULL}
+
+# let us clean and convert the variables correctly
+colnames <- c(vin = 'character', 
+              back_legroom = 'numeric',
+              body_type = 'factor', 
+              city = 'character', 
+              city_fuel_economy = 'numeric', 
+              daysonmarket = 'numeric', 
+              dealer_zip = 'numeric',
+              description = 'character',
+              engine_cylinders = 'factor', # should be separated
+              engine_displacement = 'numeric', # ?
+              engine_type = 'numeric', # ?
+              exterior_color = 'factor', # should be broken down
+              franchise_dealer = 'boolean', 
+              franchise_make = 'factor', # either this or make_name
+              front_legroom  = 'numeric', 
+              fuel_tank_volume  = 'numeric', 
+              fuel_type = 'factor', 
+              height = 'numeric', 
+              highway_fuel_economy = 'numeric', 
+              horsepower = 'numeric', 
+              interior_color = 'character', # should be broken down
+              is_new  = 'boolean', 
+              latitude  = 'numeric', 
+              length = 'numeric', 
+              listed_date = 'date', 
+              listing_color  = 'factor', # could be taken as alternatives for colors
+              listing_id  = 'numeric', 
+              longitude = 'numeric', 
+              main_picture_url = 'character', 
+              major_options = 'character', # should be separated
+              make_name = 'factor', # either this or franchise_make
+              maximum_seating = 'numeric', 
+              mileage = 'numeric', 
+              model_name = 'character', # too many
+              power = 'character', # should be split in multiple
+              price = 'numeric', 
+              savings_amount = 'numeric', # ?
+              seller_rating = 'numeric', 
+              sp_id = 'numeric', 
+              sp_name = 'character', 
+              torque = 'numeric', 
+              transmission = 'factor', 
+              transmission_display = 'character', # can be omitted as we already have transmission 
+              trimId = 'numeric', 
+              trim_name = 'character', 
+              wheel_system = 'factor', 
+              wheel_system_display = 'factor', # can be omitted 
+              wheelbase = 'character', # needs to be separated
+              width = 'numeric', 
+              year = 'numeric', 
+              state = 'factor', 
+              county = 'character', # too many
+              DemRepRatio = 'numeric'
+)
+
+# make conversions. Some need physical input []
+for (i in colnames(carListingsClean)) {
+  if (colnames[i][[1]] == 'numeric') {
+    carListingsClean[[i]] <- as.ff(as.numeric(carListingsClean[[i]][]))
+  } else if (colnames[[i]] == 'factor'){
+    carListingsClean[[i]] <- as.ff(as.factor(carListingsClean[[i]][]))
+  } else if (colnames[[i]] == 'boolean'){
+    carListingsClean[[i]] <- as.ff(as.boolean(carListingsClean[[i]][]))
+  } else if (colnames[[i]] == 'character'){
+    carListingsClean[[i]] <- as.ff(as.character(carListingsClean[[i]]))
+  } else if (colnames[[i]] == 'date'){
+    carListingsClean[[i]] <- as.ff(as.Date(carListingsClean[[i]]))
+  }
+}
+
+# check if it worked
+str(carListingsClean[])
+
+# let us omit more variables we don't want
+omit <- c('vin', 'description', 'dealer_zip', 'listing_id', 'main_picture_url', 'sp_id', 'sp_name', 
+          'transmission_display',  'trimId', 'trim_name', 'wheel_system_display', 
+          'exterior_color', 'interior_color', # as we already account for other color
+          'franchise_make', # as we already account for the brand
+          'major_options', # too detailed
+          'model_name' # too many options
+)
+for (column in omit) {carListingsClean[[column]] <- NULL}
+
+# rename columns to make it clear where the data comes from
+n <- colnames(carListingsClean)
+n[n=='DemRep_state'] <- 'state'
+n[n=='DemRep_county'] <- 'county'
+names(carListingsClean) <- n
+remove(n)
+
+# separate variable "power" into "hp" and into "RPM"
+list <- (str_split(carListingsClean$power[], " "))
+carListingsClean$hp <- as.ff(as.numeric(lapply(list, '[[', 1)))
+
+# but these are almost the same, so we can delete $hp
+identical(carListingsClean[['horsepower']],carListingsClean[['hp']])
+tail(carListingsClean$horsepower)
+tail(carListingsClean$hp)
+head(carListingsClean$horsepower)
+head(carListingsClean$hp)
+carListingsClean$hp <- NULL
+
+# as lapply doesn't work with errors, we write our own function to ignore those errors
+testFunction <- function (x) {
+  return(tryCatch("[["(x, 4), error=function(e) NULL))}
+
+# Get RPM from the list of the power column
+rpm <- lapply(list, testFunction)
+carListingsClean$rpm <- as.ff(as.numeric(str_replace(rpm, ",", "")))
+carListingsClean$power <- NULL
+
+# separate number from ".. in" in the variable "wheelbase"
+head(carListingsClean$wheelbase)
+list <- str_split(carListingsClean$wheelbase[], " in")
+carListingsClean$wheelbase <- as.ff(as.numeric(lapply(list, '[[', 1)))
+
+# simplify engine_cylinders by allowing for less variations
+head(carListingsClean$engine_cylinders)
+list <- str_split(carListingsClean$engine_cylinders[], " ")
+carListingsClean$engine_cylinders <- as.ff(as.factor(as.character(lapply(list, '[[', 1))))
+
+# from Date to Month and Year
+carListingsClean$month <- as.ff(month(carListingsClean$listed_date[]))
+carListingsClean$year <- as.ff(year(carListingsClean$listed_date[]))
+
+# remove unnecessary variables
+remove(list, rpm, column, colnames, count_nas, i, omit, sorted, testFunction)
+
+
+
