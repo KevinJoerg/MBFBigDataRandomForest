@@ -102,6 +102,8 @@ carListingsClean <- carListings[!is.na(carListings$DemRepRatio)]
 system("mkdir ffdfClean")
 save.ffdf(carListingsClean, dir = './ffdfClean', overwrite = TRUE)
 
+
+
 library(data.table)
 library(ff)
 library(ffbase)
@@ -128,7 +130,7 @@ rm(list = ls())
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 
 # Load the clean data
-load.ffdf(dir='./ffdfClean')
+ffbase::load.ffdf(dir='./ffdfClean')
 
 #*******************************************************************************
 # Data cleaning with ffdf
@@ -270,12 +272,13 @@ head(carListingsClean$engine_cylinders)
 list <- str_split(carListingsClean$engine_cylinders[], " ")
 carListingsClean$engine_cylinders <- as.ff(as.factor(as.character(lapply(list, '[[', 1))))
 
-# from Date to Month and Year
-carListingsClean$month <- as.ff(month(carListingsClean$listed_date[]))
-carListingsClean$year <- as.ff(year(carListingsClean$listed_date[]))
-
 # remove unnecessary variables
 remove(list, rpm, column, colnames, count_nas, i, omit, sorted, testFunction)
+
+# save new ffdf
+system("mkdir ffdfCleaner")
+save.ffdf(carListingsClean, dir = './ffdfCleaner', overwrite = TRUE)
+
 
 ## Analysis ********************************************************************
 # 
