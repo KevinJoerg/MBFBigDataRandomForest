@@ -261,96 +261,71 @@ ols_correlations(regr)
 
 
 ### Regression ### -----------------------------------------
-library(gputools)
 library(tictoc)
-# library(ade4)
+library(gputools)
+# gputools:
+# Download from https://cran.r-project.org/src/contrib/Archive/gputools/
+# Install manually
+# Needs Nvidia GPU with installed CUDA toolkit
 
+# The clean data are small enough to analyze in memory
 carListings.df <- as.data.frame(carListingsClean)
-# # carListings.df <- na.omit(carListings.df)
-# carListings.df <- droplevels(carListings.df)
-# 
-# test.df <- acm.disjonctif(carListings.df[,c('body_type', 'fuel_type')])
-# test.df$horsepower <- carListings.df$horsepower
-# test.df$DemRepRatio <- carListings.df$DemRepRatio
-# 
-# # Find pct
-# pct <- colSums(test.df) / nrow(test.df)
-# 
-# test.df[,pct < 0.01] <- NULL
-# 
-# # test.df$body_type. <- NULL
-# # test.df$body_type.Convertible <- NULL
-# # test.df$fuel_type. <- NULL
-# # test.df$`fuel_type.Compressed Natural Gas` <- NULL
-# # test.df$fuel_type.Propane <- NULL
-# # test.df$fuel_type.Hybrid <- NULL
-# 
-# test.df <- droplevels(test.df)
-# 
-# # Other method
-# # test.df <- carListings.df[,c('DemRepRatio', 'body_type', 'fuel_type', 'horsepower')]
-test.df <- carListings.df
 
-pct <- lapply(test.df, function(x) table(x) / length(x))
+# In order to avoid multicolinearity issues, summarize uncommon factors as "Other"
 
+# First find the pct occurrence of all unique values
+pct <- lapply(carListings.df, function(x) table(x) / length(x))
+
+# Function that adds the factor "Other" to all columns that are factors
 addFactorOther <- function(x){
   if(is.factor(x)) return(factor(x, levels=c(levels(x), "Other")))
   return(x)
 }
 
-test.df <- as.data.frame(lapply(test.df, addFactorOther))
+# Apply function
+carListings.df <- as.data.frame(lapply(carListings.df, addFactorOther))
 
-for (column in colnames(test.df)){
-  if (is.factor(test.df[, column])){
+# Change factor values that occur in less than 1% of cases to "Other"
+for (column in colnames(carListings.df)){
+  if (is.factor(carListings.df[, column])){
     drop <- pct[[column]]
-    drop <- names(drop[drop < 0.005])
-    test.df[is.element(test.df[,column], drop), column] <- "Other"
+    drop <- names(drop[drop < 0.01])
+    carListings.df[is.element(carListings.df[,column], drop), column] <- "Other"
   }
   else{
-    test.df[,column] <- scale(test.df[,column])
+    # Scale non factor columns
+    carListings.df[,column] <- scale(carListings.df[,column])
   }
 
 }
 
-
-# test.df$engine_type <- NULL
-# test.df$engine_cylinders <- NULL
-# test.df$state <- NULL
-# test.df$fuel_type <- NULL
-# test.df$fuel_tank_volume <- NULL
-# test.df$longitude <- NULL
-# test.df$latitude <- NULL
-# test.df$listed_date <- NULL
-# test.df$maximum_seating <- NULL
-# test.df$month <- NULL
-# test.df$year <- NULL
-# test.df$city_fuel_economy <- NULL
-# test.df$highway_fuel_economy <- NULL
-# test.df$wheelbase <- NULL
-# test.df$front_legroom <- NULL
-# test.df$back_legroom <- NULL
-# test.df$height <- NULL
-# test.df$width <- NULL
-
 # Drop some variables
-test.df$city <- NULL
-test.df$county <- NULL
+carListings.df$city <- NULL
+carListings.df$county <- NULL
 
-test.df <- droplevels(test.df)
+# Drop unused levels
+carListings.df <- droplevels(carListings.df)
 
-# rm(carListingsClean, carListings.df, pct)
-# gc()
+# Free memory
+rm(carListingsClean, pct)
+gc()
 
+# Here run the regressions *****************************************************
 
+# Regression equation
 f <- 'DemRepRatio ~ .'
+
+# Regression with CUDA GPU computing
 tic()
-olsgpu <- gpuLm(f, test.df)
+olsgpu <- gpuLm(f, carListings.df)
 toc()
 
+# Normal CPU based regression
 tic()
-ols <- lm(f, test.df)
+ols <- lm(f, carListings.df)
 toc()
 
+# Compare the two outputs
 summary(olsgpu)
 summary(ols)
 
@@ -422,6 +397,71 @@ x <- as.ffdf(trees)
 a <- bigglm(log(Volume)~log(Girth)+log(Height), 
             data=x[], chunksize=10, sandwich=TRUE)
 
+# OLD, Backup, keep incase other solution than GPU based regression is desired
+# 
+# library(biglm)
+# library(bigmemory)
+# library(biganalytics)
+# library(bigmemoryExtras)
+# #if (!requireNamespace("BiocManager", quietly = TRUE))
+# #  install.packages("BiocManager")
+# # BiocManager::install("gputools")
+# # install.packages("gputools")
+# 
+# # Change to bigmemory type
+# carListings.df <- as.data.frame(carListingsClean)
+# carListings <- as.big.matrix(carListings.df, backingfile = 'carListings.bin', descriptorfile = 'carListings.bin.desc')
+# 
+# colnames(carListings)
+# # Variables that work alone
+# # back_legroom + body_type + city_fuel_economy + daysonmarket + engine_cylinders + engine_displacement + 
+# # franchise_dealer + front_legroom + fuel_tank_volume + fuel_type + height + highway_fuel_economy + horsepower + is_new + make_name + maximum_seating
+# # listing_color + mileage + price + savings_amount + torque + transmission + wheel_system + wheelbase + state + rpm
+# # factors c('body_type', 'engine_cylinders', 'fuel_type', 'listing_color', 'make_name', 'transmission', 'wheel_system', 'state')
+# # Variables that are super slow
+# # city, county
+# 
+# f <- 'DemRepRatio ~ back_legroom + body_type + city_fuel_economy + daysonmarket + engine_cylinders + engine_displacement + franchise_dealer + front_legroom + fuel_tank_volume + fuel_type + height + highway_fuel_economy + horsepower + is_new + make_name + maximum_seating + listing_color + mileage + price + savings_amount + torque + transmission + wheel_system + wheelbase + state + rpm'
+# f <- 'DemRepRatio ~ back_legroom + body_type + city_fuel_economy + daysonmarket + engine_cylinders + engine_displacement + franchise_dealer'
+# 
+# a <- biglm.big.matrix('DemRepRatio ~ body_type', data = carListings, fc = c('body_type'))
+# summary(a)
+# 
+# # carListings.df <- carListings.df %>% mutate_if(is.factor, as.character) 
+# 
+# c <- as.matrix(carListings.df)
+# carListings <- as.big.matrix(carListings.df, backingfile = 'carListings.bin', descriptorfile = 'carListings.bin.desc')
+# carListings <- filebacked.big.matrix()
+# b <- BigMatrixFactor(c, backingfile = 'carListingsFactor.bin')
+# # rm(carListingsClean, carListings.df)
+# gc()
+# colnames(carListings)
+# carListings[, 3]
+# 
+# a <- biglm.big.matrix('DemRepRatio ~ back_legroom + body_type', data = carListings)
+# summary(a)
+# 
+# # Remove rows with NA. Not needed for normal lm
+# carListings.short <- as.ffdf(na.omit(as.data.frame(carListingsClean)))
+# 
+# colnames(carListingsClean)
+# 
+# # Try a regression with many variables
+# summary(bigglm.ffdf(DemRepRatio ~ back_legroom + body_type + city, data = carListingsClean))
+# 
+# lm(DemRepRatio ~ ., data = carListings.short)
+# 
+# ?bigglm.ffdf
+# 
+# ols <- bigglm(DemRepRatio ~ price + back_legroom + body_type + city, data = carListingsClean[], chunksize = 100000)
+# 
+# bigglm.ffdf(back_legroom ~ body_type, data = carListings.short)
+# 
+# data(trees)
+# x <- as.ffdf(trees)
+# a <- bigglm(log(Volume)~log(Girth)+log(Height), 
+#             data=x[], chunksize=10, sandwich=TRUE)
+# 
 
 
 
