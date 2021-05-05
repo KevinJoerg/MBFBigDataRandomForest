@@ -1,13 +1,18 @@
 ### XGBOOST ###
 ### Authors: Tim Graf, Kevin Jörg, Moritz Dänliker ###
 
-"note: Xgboost manages only numeric vectors.
+"note: 
+Xgboost manages only numeric vectors. Hence we convert all factors to spare matrix with binary format
+
 For many machine learning algorithms, using correlated features is not a good idea. 
 It may sometimes make prediction less accurate, and most of the time make interpretation of the model 
 almost impossible. GLM, for instance, assumes that the features are uncorrelated.
-
 Fortunately, decision tree algorithms (including boosted trees) are very robust to these features. 
 Therefore we have nothing to do to manage this situation.
+
+Decision trees do not require normalization of their inputs; 
+and since XGBoost is essentially an ensemble algorithm comprised of decision trees, 
+it does not require normalization for the inputs either.
 "
 
 library(xgboost)
@@ -47,7 +52,7 @@ omit <- c('month', 'year', 'county', 'longitude', 'latitude', 'franchise_dealer'
 data <- data %>% dplyr::select(-omit)
 
 # smaller dataset for trial and omit NA rows, that will else produce errors in the algorithm
-data <- data[1:10000,]
+#data <- data[1:1000,]
 data <- na.omit(data)
 
 # trasnform
@@ -160,21 +165,32 @@ params_xgb <- list(booster = mytune$x$booster,
                    max_depth = mytune$x$max_depth, # max depth of trees, the more deep the more complex and overfitting
                    min_child_weight = mytune$x$min_child_weight, # min number of instances per child node, blocks potential feature interaction and thus overfitting
                    colsample_bytree = mytune$x$colsample_bytree # number of variables per tree, typically between 0.5 - 0.9
-) 
+                   ) 
 
 
 # using cross-validation to find optimal nrounds parameter
-xgbcv <- xgb.cv(params = params_xgb,
-                data = dtrain, 
-                nrounds = 1000L, 
-                nfold = 5,
-                showsd = T, # whether to show standard deviation of cv
-                stratified = F, 
-                print_every_n = 1, 
-                early_stopping_rounds = 50, # stop if we don't see much improvement
-                maximize = F, # should the metric be maximized?
-                verbose = 2)
-
+tree_methods = c('hist')
+xgbtree.time = list()
+xgbcore.time = list()
+cores = c(-1, 1, 16)
+for (i in 1:length(cores)) {
+  xgbcore.time[[i]] = system.time({
+      xgbcv <- xgb.cv(params = params_xgb,
+                    data = dtrain, 
+                    nrounds = 10L, 
+                    nfold = 5,
+                    showsd = T, # whether to show standard deviation of cv
+                    stratified = F, 
+                    print_every_n = 1, 
+                    n_jobs = cores[i],
+                    early_stopping_rounds = 50, # stop if we don't see much improvement
+                    maximize = F, # should the metric be maximized?
+                    verbose = 2, 
+                    tree_method = 'hist')
+    })
+}
+xgbtree.time
+xgbcore.time
 
 # Result of best iteration
 xgb_best_iteration <- xgbcv$best_iteration
@@ -231,17 +247,41 @@ xgb_best_iteration <- xgbcv$best_iteration
 # stopCluster(cl)
 
 ### MODEL 3: RUN WITH OPTIMAL PARAMETERS ###  -----------------------------
+'Xgboost doesnt run multiple trees in parallel like you noted, you need predictions after each tree to update gradients.
+Rather it does the parallelization WITHIN a single tree my using openMP to create branches independently'
+
 
 # training with optimized nrounds and params
-xgb3 <- xgb.train(params = params_xgb, 
-                  data = dtrain, 
-                  nrounds = xgb_best_iteration, 
-                  watchlist = list(test = dtest, train = dtrain), 
-                  nthread = detectCores(),
-                  maximize = F, 
-                  eval_metric = "rmse"
-)
+# best is to let out the num threads, as xgboost takes all by default
+threads = c(1,2,4,8,16)
+xgboost.time = list()
+for (i in 1:length(threads)) {
+  xgboost.time[[i]] = system.time({
+  xgb3 <- xgb.train(params = params_xgb, 
+                    data = dtrain, 
+                    nrounds = 10, 
+                    watchlist = list(test = dtest, train = dtrain), 
+                    nthread = threads[i],
+                    maximize = F, 
+                    eval_metric = "rmse", 
+                    tree_method = 'hist') # this accelerates the process by 3x
+  print ('finish training', threads[i])
+ }) 
+}
 
+xgboost.time[[6]] = system.time({
+  xgb3 <- xgb.train(params = params_xgb, 
+                    data = dtrain, 
+                    nrounds = 10, 
+                    watchlist = list(test = dtest, train = dtrain), 
+                    maximize = F, 
+                    eval_metric = "rmse", 
+                    n_jobs = -1,
+                    tree_method = 'hist') # this accelerates the process by 3x
+  print ('finish training')
+}) 
+
+xgboost.time
 
 ### TESTING THE MODEL ###--------------------------------------------
 
