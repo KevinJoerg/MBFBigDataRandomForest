@@ -261,6 +261,104 @@ ols_correlations(regr)
 
 
 ### Regression ### -----------------------------------------
+library(gputools)
+library(tictoc)
+# library(ade4)
+
+carListings.df <- as.data.frame(carListingsClean)
+# # carListings.df <- na.omit(carListings.df)
+# carListings.df <- droplevels(carListings.df)
+# 
+# test.df <- acm.disjonctif(carListings.df[,c('body_type', 'fuel_type')])
+# test.df$horsepower <- carListings.df$horsepower
+# test.df$DemRepRatio <- carListings.df$DemRepRatio
+# 
+# # Find pct
+# pct <- colSums(test.df) / nrow(test.df)
+# 
+# test.df[,pct < 0.01] <- NULL
+# 
+# # test.df$body_type. <- NULL
+# # test.df$body_type.Convertible <- NULL
+# # test.df$fuel_type. <- NULL
+# # test.df$`fuel_type.Compressed Natural Gas` <- NULL
+# # test.df$fuel_type.Propane <- NULL
+# # test.df$fuel_type.Hybrid <- NULL
+# 
+# test.df <- droplevels(test.df)
+# 
+# # Other method
+# # test.df <- carListings.df[,c('DemRepRatio', 'body_type', 'fuel_type', 'horsepower')]
+test.df <- carListings.df
+
+pct <- lapply(test.df, function(x) table(x) / length(x))
+
+addFactorOther <- function(x){
+  if(is.factor(x)) return(factor(x, levels=c(levels(x), "Other")))
+  return(x)
+}
+
+test.df <- as.data.frame(lapply(test.df, addFactorOther))
+
+for (column in colnames(test.df)){
+  if (is.factor(test.df[, column])){
+    drop <- pct[[column]]
+    drop <- names(drop[drop < 0.005])
+    test.df[is.element(test.df[,column], drop), column] <- "Other"
+  }
+  else{
+    test.df[,column] <- scale(test.df[,column])
+  }
+
+}
+
+
+# test.df$engine_type <- NULL
+# test.df$engine_cylinders <- NULL
+# test.df$state <- NULL
+# test.df$fuel_type <- NULL
+# test.df$fuel_tank_volume <- NULL
+# test.df$longitude <- NULL
+# test.df$latitude <- NULL
+# test.df$listed_date <- NULL
+# test.df$maximum_seating <- NULL
+# test.df$month <- NULL
+# test.df$year <- NULL
+# test.df$city_fuel_economy <- NULL
+# test.df$highway_fuel_economy <- NULL
+# test.df$wheelbase <- NULL
+# test.df$front_legroom <- NULL
+# test.df$back_legroom <- NULL
+# test.df$height <- NULL
+# test.df$width <- NULL
+
+# Drop some variables
+test.df$city <- NULL
+test.df$county <- NULL
+
+test.df <- droplevels(test.df)
+
+# rm(carListingsClean, carListings.df, pct)
+# gc()
+
+
+f <- 'DemRepRatio ~ .'
+tic()
+olsgpu <- gpuLm(f, test.df)
+toc()
+
+tic()
+ols <- lm(f, test.df)
+toc()
+
+summary(olsgpu)
+summary(ols)
+
+
+# Check for multicolinearity
+alias(ols)
+alias(olsgpu)
+
 library(biglm)
 library(bigmemory)
 library(biganalytics)
