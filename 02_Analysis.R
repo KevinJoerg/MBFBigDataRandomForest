@@ -43,60 +43,65 @@ title(main = '% NAs in used cars data')
 # drop all variables for which we have less than 80% observations
 omit <- names(which(sorted>=0.2))
 for (column in omit) {carListingsClean[[column]] <- NULL}
+rm(omit, column, count_nas, sorted)
+
+# let us omit more variables we don't want
+omit <- c('vin', 
+          'city', 
+          'description', 
+          'dealer_zip', 
+          'longitude', 'latitude', # as we already account for it in the dependent variable
+          'listing_id',
+          'main_picture_url', 
+          'sp_id', 
+          'sp_name', 
+          'transmission_display', 
+          'trimId', 
+          'trim_name',
+          'wheel_system_display', 
+          'exterior_color', 'interior_color', # as we already account for other color
+          'franchise_make', # as we already account for the brand
+          'major_options', # too detailed
+          'model_name' # too many options
+)
+for (column in omit) {carListingsClean[[column]] <- NULL}
+  
 
 # let us clean and convert the variables correctly
-colnames <- c(vin = 'character', 
-              back_legroom = 'numeric',
+colnames <- c(back_legroom = 'numeric',
               body_type = 'factor', 
               city = 'character', 
               city_fuel_economy = 'numeric', 
               daysonmarket = 'numeric', 
-              dealer_zip = 'numeric',
-              description = 'character',
               engine_cylinders = 'factor', # should be separated
               engine_displacement = 'numeric', # ?
               engine_type = 'factor', # This should be factor !!!!!!!!!!!!!!!!!
-              exterior_color = 'factor', # should be broken down
               franchise_dealer = 'boolean', 
-              franchise_make = 'factor', # either this or make_name
               front_legroom  = 'numeric', 
               fuel_tank_volume  = 'numeric', 
               fuel_type = 'factor', 
               height = 'numeric', 
               highway_fuel_economy = 'numeric', 
               horsepower = 'numeric', 
-              interior_color = 'character', # should be broken down
               is_new  = 'boolean', 
-              latitude  = 'numeric', 
               length = 'numeric', 
               listed_date = 'date', 
               listing_color  = 'factor', # could be taken as alternatives for colors
-              listing_id  = 'numeric', 
-              longitude = 'numeric', 
-              main_picture_url = 'character', 
-              major_options = 'character', # should be separated
               make_name = 'factor', # either this or franchise_make
               maximum_seating = 'numeric', 
               mileage = 'numeric', 
-              model_name = 'character', # too many
               power = 'character', # should be split in multiple
               price = 'numeric', 
               savings_amount = 'numeric', # ?
               seller_rating = 'numeric', 
-              sp_id = 'numeric', 
-              sp_name = 'character', 
               torque = 'numeric', 
               transmission = 'factor', 
-              transmission_display = 'character', # can be omitted as we already have transmission 
-              trimId = 'numeric', 
-              trim_name = 'character', 
               wheel_system = 'factor', 
-              wheel_system_display = 'factor', # can be omitted 
               wheelbase = 'character', # needs to be separated
               width = 'numeric', 
               year = 'numeric', 
               state = 'factor', 
-              county = 'character', # too many
+              county = 'character', # too many, can we break it down?
               DemRepRatio = 'numeric'
 )
 
@@ -115,26 +120,23 @@ for (i in colnames(carListingsClean)) {
     carListingsClean[[i]] <- as.ff(as.Date(carListingsClean[[i]][]))
   }
 }
-
-# check if it worked
-str(carListingsClean[])
-
-# let us omit more variables we don't want
-omit <- c('vin', 'description', 'dealer_zip', 'listing_id', 'main_picture_url', 'sp_id', 'sp_name', 
-          'transmission_display',  'trimId', 'trim_name', 'wheel_system_display', 
-          'exterior_color', 'interior_color', # as we already account for other color
-          'franchise_make', # as we already account for the brand
-          'major_options', # too detailed
-          'model_name' # too many options
-)
-for (column in omit) {carListingsClean[[column]] <- NULL}
+rm(colnames, i)
 
 # rename columns to make it clear where the data comes from
 n <- colnames(carListingsClean)
 n[n=='DemRep_state'] <- 'state'
 n[n=='DemRep_county'] <- 'county'
 names(carListingsClean) <- n
-remove(n)
+rm(n)
+
+# check if it worked
+str(carListingsClean[])
+
+# filter out listings with listed date before 2020
+carListingsClean <- (subset.ffdf(carListingsClean, listed_date > "2020-01-01", drop = TRUE))
+
+# filter out listings with days older than 300, we don't need to as the range is between 0 and 259
+range(carListingsClean[['daysonmarket']])
 
 # separate variable "power" into "hp" and into "RPM"
 list <- (str_split(carListingsClean$power[], " "))
@@ -167,12 +169,14 @@ head(carListingsClean$engine_cylinders)
 list <- str_split(carListingsClean$engine_cylinders[], " ")
 carListingsClean$engine_cylinders <- as.ff(as.factor(as.character(lapply(list, '[[', 1))))
 
-# from Date to Month and Year
-carListingsClean$month <- as.ff(month(carListingsClean$listed_date[]))
-carListingsClean$year <- as.ff(year(carListingsClean$listed_date[]))
 
 # remove unnecessary variables
 remove(list, rpm, column, colnames, count_nas, i, omit, sorted, testFunction)
+
+# check if it worked
+str(carListingsClean[])
+
+
 
 ### Regression ### -----------------------------------------
 library(biglm)
