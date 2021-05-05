@@ -33,9 +33,15 @@ load.ffdf(dir='./ffdfClean2')
 
 ### Some analysis ### -----------------------------------------
 
+num_variables = c('back_legroom', 'city_fuel_economy', 'engine_displacement', 'front_legroom', 'fuel_tank_volume', 'height', 'highway_fuel_economy', 
+                  'horsepower', 'length', 'maximum_seating', 'mileage', 'price', 'savings_amount', 'seller_rating', 'torque', 'wheelbase', 'width', 
+                  'year', 'DemRepRatio', 'rpm')
+
+carListings.onlynum <- data.frame(carListingsClean) %>% select(num_variables)
+
 
 # correlation matrix
-cor(na.omit(data.frame(carListings.small)))
+cor(na.omit(data.frame(carListings.onlynum)))
 
 # simple regression 
 carListings.df <- as.data.frame(carListingsClean)
