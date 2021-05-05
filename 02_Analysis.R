@@ -9,6 +9,10 @@ library(tidyr)
 library(biglm)
 library(stringr)
 library(lobstr)
+library(lmtest)
+library(sandwich)
+library(olsrr)
+library(ggplot2)
 
 rm(list = ls())
 
@@ -43,60 +47,65 @@ title(main = '% NAs in used cars data')
 # drop all variables for which we have less than 80% observations
 omit <- names(which(sorted>=0.2))
 for (column in omit) {carListingsClean[[column]] <- NULL}
+rm(omit, column, count_nas, sorted)
+
+# let us omit more variables we don't want
+omit <- c('vin', 
+          'city', 
+          'description', 
+          'dealer_zip', 
+          'longitude', 'latitude', # as we already account for it in the dependent variable
+          'listing_id',
+          'main_picture_url', 
+          'sp_id', 
+          'sp_name', 
+          'transmission_display', 
+          'trimId', 
+          'trim_name',
+          'wheel_system_display', 
+          'exterior_color', 'interior_color', # as we already account for other color
+          'franchise_make', # as we already account for the brand
+          'major_options', # too detailed
+          'model_name' # too many options
+)
+for (column in omit) {carListingsClean[[column]] <- NULL}
+
 
 # let us clean and convert the variables correctly
-colnames <- c(vin = 'character', 
-              back_legroom = 'numeric',
+colnames <- c(back_legroom = 'numeric',
               body_type = 'factor', 
               city = 'character', 
               city_fuel_economy = 'numeric', 
               daysonmarket = 'numeric', 
-              dealer_zip = 'numeric',
-              description = 'character',
               engine_cylinders = 'factor', # should be separated
               engine_displacement = 'numeric', # ?
               engine_type = 'factor', # This should be factor !!!!!!!!!!!!!!!!!
-              exterior_color = 'factor', # should be broken down
               franchise_dealer = 'boolean', 
-              franchise_make = 'factor', # either this or make_name
               front_legroom  = 'numeric', 
               fuel_tank_volume  = 'numeric', 
               fuel_type = 'factor', 
               height = 'numeric', 
               highway_fuel_economy = 'numeric', 
               horsepower = 'numeric', 
-              interior_color = 'character', # should be broken down
               is_new  = 'boolean', 
-              latitude  = 'numeric', 
               length = 'numeric', 
               listed_date = 'date', 
               listing_color  = 'factor', # could be taken as alternatives for colors
-              listing_id  = 'numeric', 
-              longitude = 'numeric', 
-              main_picture_url = 'character', 
-              major_options = 'character', # should be separated
               make_name = 'factor', # either this or franchise_make
               maximum_seating = 'numeric', 
               mileage = 'numeric', 
-              model_name = 'character', # too many
               power = 'character', # should be split in multiple
               price = 'numeric', 
               savings_amount = 'numeric', # ?
               seller_rating = 'numeric', 
-              sp_id = 'numeric', 
-              sp_name = 'character', 
               torque = 'numeric', 
               transmission = 'factor', 
-              transmission_display = 'character', # can be omitted as we already have transmission 
-              trimId = 'numeric', 
-              trim_name = 'character', 
               wheel_system = 'factor', 
-              wheel_system_display = 'factor', # can be omitted 
               wheelbase = 'character', # needs to be separated
               width = 'numeric', 
               year = 'numeric', 
               state = 'factor', 
-              county = 'character', # too many
+              county = 'character', # too many, can we break it down?
               DemRepRatio = 'numeric'
 )
 
@@ -115,26 +124,27 @@ for (i in colnames(carListingsClean)) {
     carListingsClean[[i]] <- as.ff(as.Date(carListingsClean[[i]][]))
   }
 }
-
-# check if it worked
-str(carListingsClean[])
-
-# let us omit more variables we don't want
-omit <- c('vin', 'description', 'dealer_zip', 'listing_id', 'main_picture_url', 'sp_id', 'sp_name', 
-          'transmission_display',  'trimId', 'trim_name', 'wheel_system_display', 
-          'exterior_color', 'interior_color', # as we already account for other color
-          'franchise_make', # as we already account for the brand
-          'major_options', # too detailed
-          'model_name' # too many options
-)
-for (column in omit) {carListingsClean[[column]] <- NULL}
+rm(colnames, i)
 
 # rename columns to make it clear where the data comes from
 n <- colnames(carListingsClean)
 n[n=='DemRep_state'] <- 'state'
 n[n=='DemRep_county'] <- 'county'
 names(carListingsClean) <- n
-remove(n)
+rm(n)
+
+# check if it worked
+str(carListingsClean[])
+
+# filter out listings with listed date before 2020
+carListingsClean <- (subset.ffdf(carListingsClean, listed_date > "2020-01-01", drop = TRUE))
+
+# filter out listings with days older than 300, we don't need to as the range is between 0 and 259
+range(carListingsClean[['daysonmarket']])
+
+# omit both columns
+omit <- c('daysonmarket', 'listed_date')
+for (column in omit) {carListingsClean[[column]] <- NULL}
 
 # separate variable "power" into "hp" and into "RPM"
 list <- (str_split(carListingsClean$power[], " "))
@@ -167,14 +177,163 @@ head(carListingsClean$engine_cylinders)
 list <- str_split(carListingsClean$engine_cylinders[], " ")
 carListingsClean$engine_cylinders <- as.ff(as.factor(as.character(lapply(list, '[[', 1))))
 
-# from Date to Month and Year
-carListingsClean$month <- as.ff(month(carListingsClean$listed_date[]))
-carListingsClean$year <- as.ff(year(carListingsClean$listed_date[]))
+# reduce numer of engine types
+head(carListingsClean$engine_type)
+list <- str_split(carListingsClean$engine_type[], " ")
+carListingsClean$engine_type <- as.ff(as.factor(as.character(lapply(list, '[[', 1))))
 
 # remove unnecessary variables
 remove(list, rpm, column, colnames, count_nas, i, omit, sorted, testFunction)
 
+# check if it worked
+str(carListingsClean[])
+nrow(carListingsClean)
+
+### Filter outliers ### --------------------------------------------
+
+num_variables = c('back_legroom', 'city_fuel_economy', 'engine_displacement', 'front_legroom', 'fuel_tank_volume', 'height', 'highway_fuel_economy', 
+                  'horsepower', 'length', 'maximum_seating', 'mileage', 'price', 'savings_amount', 'seller_rating', 'torque', 'wheelbase', 'width', 
+                  'year', 'DemRepRatio', 'rpm')
+
+carListings.small <- subset.ffdf(carListingsClean, 
+                                 select = num_variables)
+
+carListings.df <- data.frame(carListingsClean)
+
+# plot histograms with graphics
+for (i in num_variables) {
+  hist(carListings.df[[i]], main = paste0(i, ' Histogram'), xlab = i)
+}
+
+# filter outliers in savings_amount, prices, horsepower, and more
+carListingsClean <- subset.ffdf(carListingsClean, c(savings_amount < 2500), drop = TRUE)
+carListingsClean <- subset.ffdf(carListingsClean, price < 200000, drop = TRUE)
+carListingsClean <- subset.ffdf(carListingsClean, mileage < 300000, drop = TRUE)
+carListingsClean <- subset.ffdf(carListingsClean, horsepower < 600, drop = TRUE)
+carListingsClean <- subset.ffdf(carListingsClean, highway_fuel_economy < 60, drop = TRUE)
+carListingsClean <- subset.ffdf(carListingsClean, city_fuel_economy < 70, drop = TRUE)
+
+# plot again histograms with graphics
+carListings.df <- data.frame(carListingsClean)
+for (i in num_variables) {
+  hist(carListings.df[[i]], main = paste0(i, ' Histogram'), xlab = i)
+}
+
+
+### Some analysis ### -----------------------------------------
+
+
+
+# hist.ff doesn't work?
+hist.ff(carListingsClean[['back_legroom']], breaks = min(100, 1000))
+
+# correlation matrix
+cor(na.omit(data.frame(carListings.small)))
+
+# simple regression 
+carListings.df <- as.data.frame(carListingsClean)
+regr <- lm(DemRepRatio ~ price + horsepower + height + factor(state), data = carListings.df)
+summary(regr)
+
+# plot residuals
+plot(regr$residuals)
+
+# Breusch Pagan test for heteroscedasticity
+# If the test statistic has a p-value below an appropriate threshold (e.g. p < 0.05) 
+# then the null hypothesis of homoskedasticity is rejected and heteroskedasticity assumed
+bptest(regr)
+
+# robust standard erros
+regr.robust <- coeftest(regr, vcov = vcovHC(regr, type = "HC0"))
+
+#plot residuals with qqplot
+# The Q-Q plot, or quantile-quantile plot, is a graphical tool to help us assess if a set of data plausibly came from some theoretical distribution such as a Normal or exponential
+qqnorm(regr$residuals, pch = 1, frame = FALSE)
+qqline(regr$residuals, col = "steelblue", lwd = 2)
+
+# check multicollinearity
+ols_vif_tol(regr)
+
+# Relative importance of independent variables in determining Y. How much
+# each variable uniquely contributes to R2 over and above that which can be
+# accounted for by the other predictors.
+ols_correlations(regr)
+
+
 ### Regression ### -----------------------------------------
+library(tictoc)
+library(gputools)
+# gputools:
+# Download from https://cran.r-project.org/src/contrib/Archive/gputools/
+# Install manually
+# Needs Nvidia GPU with installed CUDA toolkit
+
+# The clean data are small enough to analyze in memory
+carListings.df <- as.data.frame(carListingsClean)
+
+# In order to avoid multicolinearity issues, summarize uncommon factors as "Other"
+
+# First find the pct occurrence of all unique values
+pct <- lapply(carListings.df, function(x) table(x) / length(x))
+
+# Function that adds the factor "Other" to all columns that are factors
+addFactorOther <- function(x){
+  if(is.factor(x)) return(factor(x, levels=c(levels(x), "Other")))
+  return(x)
+}
+
+# Apply function
+carListings.df <- as.data.frame(lapply(carListings.df, addFactorOther))
+
+# Change factor values that occur in less than 1% of cases to "Other"
+for (column in colnames(carListings.df)){
+  if (is.factor(carListings.df[, column])){
+    drop <- pct[[column]]
+    drop <- names(drop[drop < 0.01])
+    carListings.df[is.element(carListings.df[,column], drop), column] <- "Other"
+  }
+  else{
+    # Scale non factor columns
+    carListings.df[,column] <- scale(carListings.df[,column])
+  }
+
+}
+
+# Drop some variables
+carListings.df$city <- NULL
+carListings.df$county <- NULL
+
+# Drop unused levels
+carListings.df <- droplevels(carListings.df)
+
+# Free memory
+rm(carListingsClean, pct)
+gc()
+
+# Here run the regressions *****************************************************
+
+# Regression equation
+f <- 'DemRepRatio ~ .'
+
+# Regression with CUDA GPU computing
+tic()
+olsgpu <- gpuLm(f, carListings.df)
+toc()
+
+# Normal CPU based regression
+tic()
+ols <- lm(f, carListings.df)
+toc()
+
+# Compare the two outputs
+summary(olsgpu)
+summary(ols)
+
+
+# Check for multicolinearity
+alias(ols)
+alias(olsgpu)
+
 library(biglm)
 library(bigmemory)
 library(biganalytics)
@@ -187,8 +346,8 @@ library(bigmemoryExtras)
 # Change to bigmemory type
 carListings.df <- as.data.frame(carListingsClean)
 carListings <- as.big.matrix(carListings.df, backingfile = 'carListings.bin', descriptorfile = 'carListings.bin.desc')
-
 colnames(carListings)
+
 # Variables that work alone
 # back_legroom + body_type + city_fuel_economy + daysonmarket + engine_cylinders + engine_displacement + 
 # franchise_dealer + front_legroom + fuel_tank_volume + fuel_type + height + highway_fuel_economy + horsepower + is_new + make_name + maximum_seating
@@ -238,6 +397,71 @@ x <- as.ffdf(trees)
 a <- bigglm(log(Volume)~log(Girth)+log(Height), 
             data=x[], chunksize=10, sandwich=TRUE)
 
+# OLD, Backup, keep incase other solution than GPU based regression is desired
+# 
+# library(biglm)
+# library(bigmemory)
+# library(biganalytics)
+# library(bigmemoryExtras)
+# #if (!requireNamespace("BiocManager", quietly = TRUE))
+# #  install.packages("BiocManager")
+# # BiocManager::install("gputools")
+# # install.packages("gputools")
+# 
+# # Change to bigmemory type
+# carListings.df <- as.data.frame(carListingsClean)
+# carListings <- as.big.matrix(carListings.df, backingfile = 'carListings.bin', descriptorfile = 'carListings.bin.desc')
+# 
+# colnames(carListings)
+# # Variables that work alone
+# # back_legroom + body_type + city_fuel_economy + daysonmarket + engine_cylinders + engine_displacement + 
+# # franchise_dealer + front_legroom + fuel_tank_volume + fuel_type + height + highway_fuel_economy + horsepower + is_new + make_name + maximum_seating
+# # listing_color + mileage + price + savings_amount + torque + transmission + wheel_system + wheelbase + state + rpm
+# # factors c('body_type', 'engine_cylinders', 'fuel_type', 'listing_color', 'make_name', 'transmission', 'wheel_system', 'state')
+# # Variables that are super slow
+# # city, county
+# 
+# f <- 'DemRepRatio ~ back_legroom + body_type + city_fuel_economy + daysonmarket + engine_cylinders + engine_displacement + franchise_dealer + front_legroom + fuel_tank_volume + fuel_type + height + highway_fuel_economy + horsepower + is_new + make_name + maximum_seating + listing_color + mileage + price + savings_amount + torque + transmission + wheel_system + wheelbase + state + rpm'
+# f <- 'DemRepRatio ~ back_legroom + body_type + city_fuel_economy + daysonmarket + engine_cylinders + engine_displacement + franchise_dealer'
+# 
+# a <- biglm.big.matrix('DemRepRatio ~ body_type', data = carListings, fc = c('body_type'))
+# summary(a)
+# 
+# # carListings.df <- carListings.df %>% mutate_if(is.factor, as.character) 
+# 
+# c <- as.matrix(carListings.df)
+# carListings <- as.big.matrix(carListings.df, backingfile = 'carListings.bin', descriptorfile = 'carListings.bin.desc')
+# carListings <- filebacked.big.matrix()
+# b <- BigMatrixFactor(c, backingfile = 'carListingsFactor.bin')
+# # rm(carListingsClean, carListings.df)
+# gc()
+# colnames(carListings)
+# carListings[, 3]
+# 
+# a <- biglm.big.matrix('DemRepRatio ~ back_legroom + body_type', data = carListings)
+# summary(a)
+# 
+# # Remove rows with NA. Not needed for normal lm
+# carListings.short <- as.ffdf(na.omit(as.data.frame(carListingsClean)))
+# 
+# colnames(carListingsClean)
+# 
+# # Try a regression with many variables
+# summary(bigglm.ffdf(DemRepRatio ~ back_legroom + body_type + city, data = carListingsClean))
+# 
+# lm(DemRepRatio ~ ., data = carListings.short)
+# 
+# ?bigglm.ffdf
+# 
+# ols <- bigglm(DemRepRatio ~ price + back_legroom + body_type + city, data = carListingsClean[], chunksize = 100000)
+# 
+# bigglm.ffdf(back_legroom ~ body_type, data = carListings.short)
+# 
+# data(trees)
+# x <- as.ffdf(trees)
+# a <- bigglm(log(Volume)~log(Girth)+log(Height), 
+#             data=x[], chunksize=10, sandwich=TRUE)
+# 
 
 
 
