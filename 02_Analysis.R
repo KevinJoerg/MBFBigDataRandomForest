@@ -138,6 +138,10 @@ carListingsClean <- (subset.ffdf(carListingsClean, listed_date > "2020-01-01", d
 # filter out listings with days older than 300, we don't need to as the range is between 0 and 259
 range(carListingsClean[['daysonmarket']])
 
+# omit both columns
+omit <- c('daysonmarket', 'listed_date')
+for (column in omit) {carListingsClean[[column]] <- NULL}
+
 # separate variable "power" into "hp" and into "RPM"
 list <- (str_split(carListingsClean$power[], " "))
 carListingsClean$hp <- as.ff(as.numeric(lapply(list, '[[', 1)))
@@ -169,12 +173,17 @@ head(carListingsClean$engine_cylinders)
 list <- str_split(carListingsClean$engine_cylinders[], " ")
 carListingsClean$engine_cylinders <- as.ff(as.factor(as.character(lapply(list, '[[', 1))))
 
+# reduce numer of engine types
+head(carListingsClean$engine_type)
+list <- str_split(carListingsClean$engine_type[], " ")
+carListingsClean$engine_type <- as.ff(as.factor(as.character(lapply(list, '[[', 1))))
 
 # remove unnecessary variables
 remove(list, rpm, column, colnames, count_nas, i, omit, sorted, testFunction)
 
 # check if it worked
 str(carListingsClean[])
+nrow(carListingsClean)
 
 
 
