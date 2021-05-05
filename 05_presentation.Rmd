@@ -1,0 +1,98 @@
+---
+title: "US Presidential election outcome explained by used car data"
+author: "**Group Random Forest**: Kevin Joerg, Moritz Dändliker, Tim Graf"
+date: "Mai 20^th^ 2021"
+output:  
+  ioslides_presentation:
+    widescreen: true
+logo: logo.png
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+## Agenda
+1. Introduction
+2. Data gathering & Data cleaning
+3. Descriptive statistics
+4. Methodological approach
+4. Results
+5. Points of further consideration
+
+## Introduction (1/2)
+
+The 2020 US-Presidential election led to the highest voter turnout in history
+
+<center>
+
+**Donald Trump Vs. Joe Bidden**
+
+![*the big fight*](./Pictures_presentation/biden_trump.png)
+<center>
+
+## Introduction (2/2)
+
+### **But why was the interest in the election that high?**
+
+Clash of different Ideologies:
+
+<center>
+Conservative vs. Liberal
+
+Urban vs. Rural
+
+Climate Protectionists vs. Climate deniers
+
+<center>
+
+
+But are those social gaps also visible when it comes to the American's love for big cars?
+
+
+## Research question
+<center>
+
+### Do car characteristics have any predictive power for the US-presidential voting outcome?
+
+![*the big fight*](./Pictures_presentation/trump_truck.jpg)
+<center>
+## Data gathering(1/2)
+### **Two data samples were used**
+
+1. USed Car dataset ***(Kaggle)***
+    + 3 million cars that were listed on .... as of Sept. 2020
+    + Each car was reported with xx characteristics
+  --> total of xx data points
+    + **total file size of ~10GB**
+--> show sample
+  
+2. Precinct level voting outcome in the 2020 US-presidential election ***[MIT Election Lab]***
+    + Voting outcome in xx states and xx counties
+    + Number of republican, democrat and other Presidential candidates
+    + **file size of xx GB**
+
+## Data merging (2/2)
+* Bullet 2
+* Bullet 3
+
+[ ]: Here is the footnote. 
+
+[a]: Data retreived from
+[^2]: Data retreived from: MIT election lab
+
+## Source for further markdown code
+https://bookdown.org/yihui/rmarkdown-cookbook/fig-align.html
+
+
+```{r cars, echo = TRUE}
+summary(cars)
+```
+
+## Slide with Plot
+
+```{r pressure}
+plot(pressure)
+```
+
