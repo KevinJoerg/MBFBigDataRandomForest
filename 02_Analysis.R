@@ -9,6 +9,10 @@ library(tidyr)
 library(biglm)
 library(stringr)
 library(lobstr)
+library(lmtest)
+library(sandwich)
+library(olsrr)
+library(ggplot2)
 
 rm(list = ls())
 
@@ -65,7 +69,7 @@ omit <- c('vin',
           'model_name' # too many options
 )
 for (column in omit) {carListingsClean[[column]] <- NULL}
-  
+
 
 # let us clean and convert the variables correctly
 colnames <- c(back_legroom = 'numeric',
@@ -185,15 +189,75 @@ remove(list, rpm, column, colnames, count_nas, i, omit, sorted, testFunction)
 str(carListingsClean[])
 nrow(carListingsClean)
 
+### Filter outliers ### --------------------------------------------
+
 num_variables = c('back_legroom', 'city_fuel_economy', 'engine_displacement', 'front_legroom', 'fuel_tank_volume', 'height', 'highway_fuel_economy', 
-         'horsepower', 'length', 'maximum_seating', 'mileage', 'price', 'savings_amount', 'seller_rating', 'torque', 'wheelbase', 'width', 
-         'year', 'DemRepRatio', 'rpm')
-corr.df <- subset.ffdf(carListingsClean, 
+                  'horsepower', 'length', 'maximum_seating', 'mileage', 'price', 'savings_amount', 'seller_rating', 'torque', 'wheelbase', 'width', 
+                  'year', 'DemRepRatio', 'rpm')
+
+carListings.small <- subset.ffdf(carListingsClean, 
                                  select = num_variables)
 
-cor(na.omit(data.frame(corr.df)))
+carListings.df <- data.frame(carListingsClean)
+
+# plot histograms with graphics
+for (i in num_variables) {
+  hist(carListings.df[[i]], main = paste0(i, ' Histogram'), xlab = i)
+}
+
+# filter outliers in savings_amount, prices, horsepower, and more
+carListingsClean <- subset.ffdf(carListingsClean, c(savings_amount < 2500), drop = TRUE)
+carListingsClean <- subset.ffdf(carListingsClean, price < 200000, drop = TRUE)
+carListingsClean <- subset.ffdf(carListingsClean, mileage < 300000, drop = TRUE)
+carListingsClean <- subset.ffdf(carListingsClean, horsepower < 600, drop = TRUE)
+carListingsClean <- subset.ffdf(carListingsClean, highway_fuel_economy < 60, drop = TRUE)
+carListingsClean <- subset.ffdf(carListingsClean, city_fuel_economy < 70, drop = TRUE)
+
+# plot again histograms with graphics
+carListings.df <- data.frame(carListingsClean)
+for (i in num_variables) {
+  hist(carListings.df[[i]], main = paste0(i, ' Histogram'), xlab = i)
+}
 
 
+### Some analysis ### -----------------------------------------
+
+
+
+# hist.ff doesn't work?
+hist.ff(carListingsClean[['back_legroom']], breaks = min(100, 1000))
+
+# correlation matrix
+cor(na.omit(data.frame(carListings.small)))
+
+# simple regression 
+carListings.df <- as.data.frame(carListingsClean)
+regr <- lm(DemRepRatio ~ price + horsepower + height + factor(state), data = carListings.df)
+summary(regr)
+
+# plot residuals
+plot(regr$residuals)
+
+# Breusch Pagan test for heteroscedasticity
+# If the test statistic has a p-value below an appropriate threshold (e.g. p < 0.05) 
+# then the null hypothesis of homoskedasticity is rejected and heteroskedasticity assumed
+bptest(regr)
+
+# robust standard erros
+regr.robust <- coeftest(regr, vcov = vcovHC(regr, type = "HC0"))
+
+#plot residuals with qqplot
+# The Q-Q plot, or quantile-quantile plot, is a graphical tool to help us assess if a set of data plausibly came from some theoretical distribution such as a Normal or exponential
+qqnorm(regr$residuals, pch = 1, frame = FALSE)
+qqline(regr$residuals, col = "steelblue", lwd = 2)
+
+# check multicollinearity
+ols_vif_tol(regr)
+
+# Relative importance of independent variables in determining Y. How much
+# each variable uniquely contributes to R2 over and above that which can be
+# accounted for by the other predictors.
+ols_correlations(regr)
 
 
 ### Regression ### -----------------------------------------
@@ -209,8 +273,8 @@ library(bigmemoryExtras)
 # Change to bigmemory type
 carListings.df <- as.data.frame(carListingsClean)
 carListings <- as.big.matrix(carListings.df, backingfile = 'carListings.bin', descriptorfile = 'carListings.bin.desc')
-
 colnames(carListings)
+
 # Variables that work alone
 # back_legroom + body_type + city_fuel_economy + daysonmarket + engine_cylinders + engine_displacement + 
 # franchise_dealer + front_legroom + fuel_tank_volume + fuel_type + height + highway_fuel_economy + horsepower + is_new + make_name + maximum_seating
