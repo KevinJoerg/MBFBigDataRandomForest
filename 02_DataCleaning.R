@@ -179,7 +179,7 @@ remove(list, rpm, column, colnames, count_nas, i, omit, sorted, testFunction)
 str(carListingsClean[])
 nrow(carListingsClean)
 
-### Filter outliers ### --------------------------------------------
+### FILTER OUTLIERS ### --------------------------------------------
 
 num_variables = c('back_legroom', 'city_fuel_economy', 'engine_displacement', 'front_legroom', 'fuel_tank_volume', 'height', 'highway_fuel_economy', 
                   'horsepower', 'length', 'maximum_seating', 'mileage', 'price', 'savings_amount', 'seller_rating', 'torque', 'wheelbase', 'width', 
