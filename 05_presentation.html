@@ -24,7 +24,7 @@
         usePrettify: true,
         enableSlideAreas: true,
         enableTouch: true,
-                        favIcon: 'logo.png',
+                        favIcon: './Pictures_presentation/logo.png',
               },
 
       // Author information
@@ -3182,7 +3182,7 @@ slide:not(.current) .plotly.html-widget{
       position: absolute;
       bottom: 20px;
       left: 60px;
-      background: url(logo.png) no-repeat 0 50%;
+      background: url(./Pictures_presentation/logo.png) no-repeat 0 50%;
       -webkit-background-size: 30px 30px;
       -moz-background-size: 30px 30px;
       -o-background-size: 30px 30px;
@@ -3215,7 +3215,7 @@ slide:not(.current) .plotly.html-widget{
 
 <ol>
 <li>Introduction</li>
-<li>Data gathering &amp; Data cleaning</li>
+<li>Data gathering &amp; cleaning</li>
 <li>Descriptive statistics</li>
 <li>Methodological approach</li>
 <li>Results</li>
@@ -3248,7 +3248,7 @@ slide:not(.current) .plotly.html-widget{
 
 <p>Climate Protectionists vs. Climate deniers</p>
 
-<center>
+</center>
 
 <p>But are those social gaps also visible when it comes to the American’s love for big cars?</p>
 
@@ -3262,9 +3262,11 @@ slide:not(.current) .plotly.html-widget{
 
 <center>
 
-</article></slide><slide class=""><hgroup><h2>Data gathering(1/2)</h2></hgroup><article  id="data-gathering12">
+</article></slide><slide class=""><hgroup><h2>Data gathering(1/3)</h2></hgroup><article  id="data-gathering13">
 
 <h3><strong>Two data samples were used</strong></h3>
+
+<p>In a first step, two data sets were loaded:</p>
 
 <ol>
 <li>USed Car dataset <strong><em>(Kaggle)</em></strong>
@@ -3283,12 +3285,49 @@ slide:not(.current) .plotly.html-widget{
 </ul></li>
 </ol>
 
-</article></slide><slide class=""><hgroup><h2>Data merging (2/2)</h2></hgroup><article  id="data-merging-22">
+</article></slide><slide class=""><hgroup><h2>Data merging (2/3)</h2></hgroup><article  id="data-merging-23">
+
+<p>In a second step, the two data sets were merged</p>
+
+<p><strong>Problem:</strong></p>
+
+<center>
+
+<p>county level voting data vs. longitudonale/lattitudonale or ZIP code level car data</p>
+
+</center>
+
+<p><strong>Solution:</strong></p>
+
+<ol>
+<li>Package &lsquo;jvamisc&rsquo; retrieved from github to map lattitudonal &amp; longitudonal car data to specific county</li>
+<li>Add county voting outcome to each car data</li>
+<li>Full data set constructed</li>
+</ol>
+
+</article></slide><slide class=""><hgroup><h2>Data cleaning (3/3)</h2></hgroup><article  id="data-cleaning-33">
+
+<p>Three step cleaning approach</p>
+
+<ol>
+<li>Strain Splitting and variable type definition</li>
+<li>Omit lacking datapoints
 
 <ul>
-<li>Bullet 2</li>
-<li>Bullet 3</li>
-</ul>
+<li>only cars with data on all potential variables were considered</li>
+</ul></li>
+<li>Conceptional exclusion
+
+<ul>
+<li>some independent variables were heavily correlated to others e.g. hp vs. rpm</li>
+<li>Non-distinctional car characteristic were excluded e.g. color??</li>
+</ul></li>
+<li>Outliers
+
+<ul>
+<li>outliers were excluded by visually inspecting the factorial histograms</li>
+</ul></li>
+</ol>
 
 </article></slide><slide class=""><hgroup><h2>Source for further markdown code</h2></hgroup><article  id="source-for-further-markdown-code">
 

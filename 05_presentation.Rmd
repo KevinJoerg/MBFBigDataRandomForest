@@ -5,7 +5,7 @@ date: "Mai 20^th^ 2021"
 output:  
   ioslides_presentation:
     widescreen: true
-logo: logo.png
+logo: ./Pictures_presentation/logo.png
 
 ---
 
@@ -15,11 +15,11 @@ knitr::opts_chunk$set(echo = FALSE)
 
 ## Agenda
 1. Introduction
-2. Data gathering & Data cleaning
+2. Data gathering & cleaning
 3. Descriptive statistics
 4. Methodological approach
-4. Results
-5. Points of further consideration
+5. Results
+6. Points of further consideration
 
 ## Introduction (1/2)
 
@@ -45,7 +45,7 @@ Urban vs. Rural
 
 Climate Protectionists vs. Climate deniers
 
-<center>
+</center>
 
 
 But are those social gaps also visible when it comes to the American's love for big cars?
@@ -58,8 +58,9 @@ But are those social gaps also visible when it comes to the American's love for 
 
 ![*the big fight*](./Pictures_presentation/trump_truck.jpg)
 <center>
-## Data gathering(1/2)
+## Data gathering(1/3)
 ### **Two data samples were used**
+In a first step, two data sets were loaded:
 
 1. USed Car dataset ***(Kaggle)***
     + 3 million cars that were listed on .... as of Sept. 2020
@@ -73,14 +74,38 @@ But are those social gaps also visible when it comes to the American's love for 
     + Number of republican, democrat and other Presidential candidates
     + **file size of xx GB**
 
-## Data merging (2/2)
-* Bullet 2
-* Bullet 3
+## Data merging (2/3)
+In a second step, the two data sets were merged
 
-[ ]: Here is the footnote. 
+**Problem:** 
 
-[a]: Data retreived from
-[^2]: Data retreived from: MIT election lab
+<center>
+
+county level voting data vs. longitudonale/lattitudonale or ZIP code level car data
+
+</center>
+
+
+**Solution:**
+
+1. Package 'jvamisc' retrieved from github to map lattitudonal & longitudonal car data to specific county
+2. Add county voting outcome to each car data
+3. Full data set constructed
+
+## Data cleaning (3/3)
+
+Three step cleaning approach
+
+1. Strain Splitting and variable type definition 
+2. Omit lacking datapoints
+    - only cars with data on all potential variables were considered
+3. Conceptional exclusion
+    - some independent variables were heavily correlated to others
+    e.g. hp vs. rpm
+    - Non-distinctional car characteristic were excluded
+    e.g. color??
+4. Outliers
+    - outliers were excluded by visually inspecting the factorial histograms
 
 ## Source for further markdown code
 https://bookdown.org/yihui/rmarkdown-cookbook/fig-align.html
