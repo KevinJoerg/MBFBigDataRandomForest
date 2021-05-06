@@ -11,8 +11,11 @@
 # Exclude ff folder
 /ffdf/*
 /ffdfClean/*
+/ffdfClean2/*
 /ffdf_Tim/*
-/ffdfCleaner/*
+
+# Exclude backup folders
+/backup
 
 
 
