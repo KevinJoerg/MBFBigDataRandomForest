@@ -13,6 +13,7 @@ library(lmtest)
 library(sandwich)
 library(olsrr)
 library(ggplot2)
+library(corrgram)
 
 rm(list = ls())
 
@@ -33,15 +34,16 @@ load.ffdf(dir='./ffdfClean2')
 
 ### Some analysis ### -----------------------------------------
 
-num_variables = c('back_legroom', 'city_fuel_economy', 'engine_displacement', 'front_legroom', 'fuel_tank_volume', 'height', 'highway_fuel_economy', 
-                  'horsepower', 'length', 'maximum_seating', 'mileage', 'price', 'savings_amount', 'seller_rating', 'torque', 'wheelbase', 'width', 
-                  'year', 'DemRepRatio', 'rpm')
+num_variables = c('city_fuel_economy', 'horsepower', 'length', 'maximum_seating', 'mileage', 'price', 'DemRepRatio')
 
 carListings.onlynum <- data.frame(carListingsClean) %>% select(num_variables)
 
 
 # correlation matrix
-cor(na.omit(data.frame(carListings.onlynum)))
+tic()
+b <- cor(na.omit(data.frame(carListings.onlynum)))
+toc()
+
 
 # simple regression 
 carListings.df <- as.data.frame(carListingsClean)
@@ -76,80 +78,95 @@ ols_correlations(regr)
 ### Regression ### -----------------------------------------
 library(gputools)
 library(tictoc)
-# library(ade4)
+gpuLm.defaultTol(useSingle = FALSE)
 
 carListings.df <- as.data.frame(carListingsClean)
-# # carListings.df <- na.omit(carListings.df)
-# carListings.df <- droplevels(carListings.df)
-# 
-# test.df <- acm.disjonctif(carListings.df[,c('body_type', 'fuel_type')])
-# test.df$horsepower <- carListings.df$horsepower
-# test.df$DemRepRatio <- carListings.df$DemRepRatio
-# 
-# # Find pct
-# pct <- colSums(test.df) / nrow(test.df)
-# 
-# test.df[,pct < 0.01] <- NULL
-# 
-# # test.df$body_type. <- NULL
-# # test.df$body_type.Convertible <- NULL
-# # test.df$fuel_type. <- NULL
-# # test.df$`fuel_type.Compressed Natural Gas` <- NULL
-# # test.df$fuel_type.Propane <- NULL
-# # test.df$fuel_type.Hybrid <- NULL
-# 
-# test.df <- droplevels(test.df)
-# 
-# # Other method
-# # test.df <- carListings.df[,c('DemRepRatio', 'body_type', 'fuel_type', 'horsepower')]
-test.df <- carListings.df
 
-pct <- lapply(test.df, function(x) table(x) / length(x))
+variablesOfInterest <- c('DemRepRatio', 'is_new', 'mileage', 'price', 'city_fuel_economy', 'horsepower', 'length', 'maximum_seating', 'body_type', 'make_name', 'state')
+
+carListings.analyze <- carListings.df %>% select(variablesOfInterest)
+
+pct <- lapply(carListings.analyze, function(x) table(x) / length(x))
 
 addFactorOther <- function(x){
   if(is.factor(x)) return(factor(x, levels=c(levels(x), "Other")))
   return(x)
 }
 
-test.df <- as.data.frame(lapply(test.df, addFactorOther))
+carListings.analyze <- as.data.frame(lapply(carListings.analyze, addFactorOther))
 
-for (column in colnames(test.df)){
-  if (is.factor(test.df[, column])){
-    drop <- pct[[column]]
-    drop <- names(drop[drop < 0.005])
-    test.df[is.element(test.df[,column], drop), column] <- "Other"
+for (column in colnames(carListings.analyze)){
+  if (is.factor(carListings.analyze[, column])){
+
   }
   else{
-    test.df[,column] <- scale(test.df[,column])
+    carListings.analyze[,column] <- scale(carListings.analyze[,column])
+  }
+  
+}
+
+f <- 'DemRepRatio ~ .'
+tic()
+olsgpu <- gpuLm(f, carListings.analyze)
+toc()
+tic()
+ols <- lm(f, carListings.analyze)
+toc()
+
+summary(olsgpu)
+summary(ols)
+
+
+
+
+
+
+pct <- lapply(carListings.analyze, function(x) table(x) / length(x))
+
+addFactorOther <- function(x){
+  if(is.factor(x)) return(factor(x, levels=c(levels(x), "Other")))
+  return(x)
+}
+
+carListings.analyze <- as.data.frame(lapply(carListings.analyze, addFactorOther))
+
+for (column in colnames(carListings.analyze)){
+  if (is.factor(carListings.analyze[, column])){
+    drop <- pct[[column]]
+    drop <- names(drop[drop < 0.005])
+    carListings.analyze[is.element(carListings.analyze[,column], drop), column] <- "Other"
+  }
+  else{
+    carListings.analyze[,column] <- scale(carListings.analyze[,column])
   }
 
 }
 
 
-# test.df$engine_type <- NULL
-# test.df$engine_cylinders <- NULL
-# test.df$state <- NULL
-# test.df$fuel_type <- NULL
-# test.df$fuel_tank_volume <- NULL
-# test.df$longitude <- NULL
-# test.df$latitude <- NULL
-# test.df$listed_date <- NULL
-# test.df$maximum_seating <- NULL
-# test.df$month <- NULL
-# test.df$year <- NULL
-# test.df$city_fuel_economy <- NULL
-# test.df$highway_fuel_economy <- NULL
-# test.df$wheelbase <- NULL
-# test.df$front_legroom <- NULL
-# test.df$back_legroom <- NULL
-# test.df$height <- NULL
-# test.df$width <- NULL
+# carListings.analyze$engine_type <- NULL
+# carListings.analyze$engine_cylinders <- NULL
+# carListings.analyze$state <- NULL
+# carListings.analyze$fuel_type <- NULL
+# carListings.analyze$fuel_tank_volume <- NULL
+# carListings.analyze$longitude <- NULL
+# carListings.analyze$latitude <- NULL
+# carListings.analyze$listed_date <- NULL
+# carListings.analyze$maximum_seating <- NULL
+# carListings.analyze$month <- NULL
+# carListings.analyze$year <- NULL
+# carListings.analyze$city_fuel_economy <- NULL
+# carListings.analyze$highway_fuel_economy <- NULL
+# carListings.analyze$wheelbase <- NULL
+# carListings.analyze$front_legroom <- NULL
+# carListings.analyze$back_legroom <- NULL
+# carListings.analyze$height <- NULL
+# carListings.analyze$width <- NULL
 
 # Drop some variables
-test.df$city <- NULL
-test.df$county <- NULL
+carListings.analyze$city <- NULL
+carListings.analyze$county <- NULL
 
-test.df <- droplevels(test.df)
+carListings.analyze <- droplevels(carListings.analyze)
 
 # rm(carListingsClean, carListings.df, pct)
 # gc()
@@ -157,11 +174,11 @@ test.df <- droplevels(test.df)
 
 f <- 'DemRepRatio ~ .'
 tic()
-olsgpu <- gpuLm(f, test.df)
+olsgpu <- gpuLm(f, carListings.analyze)
 toc()
 
 tic()
-ols <- lm(f, test.df)
+ols <- lm(f, carListings.analyze)
 toc()
 
 summary(olsgpu)
@@ -235,6 +252,6 @@ x <- as.ffdf(trees)
 a <- bigglm(log(Volume)~log(Girth)+log(Height), 
             data=x[], chunksize=10, sandwich=TRUE)
 
-
+install.packages("gputools_1.1.tar.gz")
 
 
