@@ -5,6 +5,7 @@ date: "Mai 20^th^ 2021"
 output:  
   ioslides_presentation:
     widescreen: true
+    fontsize: small
 logo: ./Pictures_presentation/logo.png
 
 ---
@@ -111,9 +112,12 @@ Three step cleaning approach
 https://bookdown.org/yihui/rmarkdown-cookbook/fig-align.html
 
 
-```{r cars, echo = TRUE}
+```{r cars, echo = FALSE}
+#This is a summary of
+
 summary(cars)
 ```
+
 
 ## Slide with Plot
 
