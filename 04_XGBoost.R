@@ -15,6 +15,7 @@ and since XGBoost is essentially an ensemble algorithm comprised of decision tre
 it does not require normalization for the inputs either.
 "
 
+library(libomp)
 library(xgboost)
 library(Matrix)
 library(mlr)
@@ -29,6 +30,8 @@ library(ff)
 library(ffbase)
 library(ffbase2)
 
+
+
 ### SETUP ### ----------------------------------------------
 
 tic()
@@ -40,24 +43,18 @@ rm(list = ls())
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 
 # Load the cleaned data
-load.ffdf(dir='./ffdfCleaner')
+load.ffdf(dir='./ffdfClean2')
 
 # convert to df
 data <- data.frame(carListingsClean)
 
 ### DATA CLEANING ### ----------------------------------------------
 
-# features we want to omit for the model 
-omit <- c('month', 'year', 'county', 'longitude', 'latitude', 'franchise_dealer', 'city', 'listed_date')
-data <- data %>% dplyr::select(-omit)
-
 # smaller dataset for trial and omit NA rows, that will else produce errors in the algorithm
-#data <- data[1:1000,]
 data <- na.omit(data)
 
-# trasnform
+# transform
 data$is_new = as.factor(data$is_new)   
-
 
 
 ### SPLIT TRAINING AND TESTING DATASET ### ----------------------------------------------
@@ -65,7 +62,7 @@ data$is_new = as.factor(data$is_new)
 # set the seed to make your partition reproducible
 set.seed(123)
 smp_size <- floor(0.75 * nrow(data)) ## 75% of the sample size
-train_ind <- sample(seq_len(nrow(data)), size = smp_size)
+train_ind <- base::sample(seq_len(nrow(data)), size = smp_size)
 
 
 # Split the data into train and test
@@ -78,9 +75,7 @@ test_target = as.matrix((test[,'DemRepRatio']))
 
 # convert categorical factor into dummy variables using one-hot encoding
 sparse_matrix_train <- sparse.model.matrix((DemRepRatio)~.-1, data = train)
-matrix_train <- model.matrix(~.-1, data = train)
 sparse_matrix_test <- sparse.model.matrix((DemRepRatio)~.-1, data = test)
-matrix_test <- model.matrix(~.-1, data = test)
 
 # check the dimnames crated by the one-hot encoding
 sparse_matrix_train@Dimnames[[2]]
@@ -89,22 +84,30 @@ sparse_matrix_train@Dimnames[[2]]
 dtrain <- xgb.DMatrix(data = sparse_matrix_train, label = train_target)
 dtest <- xgb.DMatrix(data = sparse_matrix_test, label=test_target)
 
+rm(sparse_matrix_train, sparse_matrix_test, data, train_ind, carListingsClean)
+gc()
+
+
 ### MODEL 1: FIND OPTIMAL PARAMETERS ###  -----------------------------
 
 set.seed(123)
 
-fact_col <- colnames(train)[sapply(train,is.character)]
+# make a list of the optimal parameters, which we can aggregate later
+params.list <- list()
 
-for(i in fact_col) set(train,j=i,value = factor(train[[i]]))
-for (i in fact_col) set(test,j=i,value = factor(test[[i]]))
+# take a random sample of 10% of the original dataset for hyperparameter tuning
+# we do this to avoid memory issues with huge grid sizes and limited computing power
+train_subset = sample_n(train, 0.01*nrow(train))
+
+# convert characters to factors
+fact_col <- colnames(train_subset)[sapply(train_subset,is.character)]
+for(i in fact_col) set(train_subset,j=i,value = factor(train_subset[[i]]))
 
 # create tasks for learner
-traintask <- makeRegrTask(data = data.frame(train), target = 'DemRepRatio')
-testtask <- makeRegrTask(data = data.frame(test), target = 'DemRepRatio')
+traintask <- makeRegrTask(data = data.frame(train_subset), target = 'DemRepRatio')
 
 # create dummy features, as classif.xgboost does not support factors
 traintask <- createDummyFeatures(obj = traintask)
-testtask <- createDummyFeatures(obj = traintask)
 
 # create learner
 # fix number of rounds and eta 
@@ -151,7 +154,7 @@ parallelStop()
 # print the optimal parameters
 mytune
 
-
+gc()
 
 
 ### MODEL 2: FIND OPTIMAL ITERATIONS ###  -----------------------------
@@ -168,29 +171,61 @@ params_xgb <- list(booster = mytune$x$booster,
                    ) 
 
 
+# # test core methods
+# xgbcore.time = list()
+# cores = c(-1, 1, 16)
+# for (i in 1:length(cores)) {
+#   xgbcore.time[[i]] = system.time({
+#       xgbcv <- xgb.cv(params = params_xgb,
+#                     data = dtrain, 
+#                     nrounds = 10L, 
+#                     nfold = 5,
+#                     showsd = T, # whether to show standard deviation of cv
+#                     stratified = F, 
+#                     print_every_n = 1, 
+#                     n_jobs = cores[i],
+#                     early_stopping_rounds = 50, # stop if we don't see much improvement
+#                     maximize = F, # should the metric be maximized?
+#                     verbose = 2, 
+#                     tree_method = 'hist')
+#     })
+# }
+# xgbcore.time
+
+# # test tree-methods
+# # note that there exists also "gpu_hist" but this only runs on CUDA-enable GPUs by NVIDIA
+# tree_method = c('hist', 'exact')
+# xgbtree.time = list()
+# for (i in 1:length(tree_method)) {
+#   xgbtree.time[[i]] = system.time({
+#     xgbcv <- xgb.cv(params = params_xgb,
+#                     data = dtrain, 
+#                     nrounds = 10L, 
+#                     nfold = 5,
+#                     showsd = T, # whether to show standard deviation of cv
+#                     stratified = F, 
+#                     print_every_n = 1, 
+#                     early_stopping_rounds = 50, # stop if we don't see much improvement
+#                     maximize = F, # should the metric be maximized?
+#                     verbose = 2, 
+#                     tree_method = tree_method[i])
+#   })
+# }
+# xgbtree.time
+
+
 # using cross-validation to find optimal nrounds parameter
-tree_methods = c('hist')
-xgbtree.time = list()
-xgbcore.time = list()
-cores = c(-1, 1, 16)
-for (i in 1:length(cores)) {
-  xgbcore.time[[i]] = system.time({
-      xgbcv <- xgb.cv(params = params_xgb,
-                    data = dtrain, 
-                    nrounds = 10L, 
-                    nfold = 5,
-                    showsd = T, # whether to show standard deviation of cv
-                    stratified = F, 
-                    print_every_n = 1, 
-                    n_jobs = cores[i],
-                    early_stopping_rounds = 50, # stop if we don't see much improvement
-                    maximize = F, # should the metric be maximized?
-                    verbose = 2, 
-                    tree_method = 'hist')
-    })
-}
-xgbtree.time
-xgbcore.time
+xgbcv <- xgb.cv(params = params_xgb,
+                data = dtrain, 
+                nrounds = 1000L, 
+                nfold = 5,
+                showsd = T, # whether to show standard deviation of cv
+                stratified = F, 
+                print_every_n = 1, 
+                early_stopping_rounds = 50, # stop if we don't see much improvement
+                maximize = F, # should the metric be maximized?
+                verbose = 2, 
+                tree_method = tree_method[i])
 
 # Result of best iteration
 xgb_best_iteration <- xgbcv$best_iteration
@@ -253,35 +288,65 @@ Rather it does the parallelization WITHIN a single tree my using openMP to creat
 
 # training with optimized nrounds and params
 # best is to let out the num threads, as xgboost takes all by default
-threads = c(1,2,4,8,16)
-xgboost.time = list()
-for (i in 1:length(threads)) {
-  xgboost.time[[i]] = system.time({
-  xgb3 <- xgb.train(params = params_xgb, 
-                    data = dtrain, 
-                    nrounds = 10, 
-                    watchlist = list(test = dtest, train = dtrain), 
-                    nthread = threads[i],
-                    maximize = F, 
-                    eval_metric = "rmse", 
-                    tree_method = 'hist') # this accelerates the process by 3x
-  print ('finish training', threads[i])
- }) 
+xgb3 <- xgb.train(params = params_xgb, 
+                  data = dtrain, 
+                  nrounds = 10, 
+                  watchlist = list(test = dtest, train = dtrain), 
+                  nthread = threads[i],
+                  maximize = F, 
+                  eval_metric = "rmse", 
+                  tree_method = 'hist') # this accelerates the process 
+
+
+
+### ALTERNATIVE APPROACH ###--------------------------------------------
+
+# Create 10,000 rows with random hyperparameters
+
+set.seed(20)
+
+# Create empty lists
+lowest_error_list = list()
+parameters_list = list()
+
+# create grid
+for (iter in 1:10){
+  param <- list(booster = "gbtree",
+                objective = "reg:squarederror",
+                max_depth = base::sample(3:10, 1),
+                eta = runif(1, .01, .3),
+                subsample = runif(1, .7, 1),
+                colsample_bytree = runif(1, .6, 1),
+                min_child_weight = base::sample(0:10, 1), 
+                tree_method = 'hist'
+  )
+  parameters <- as.data.frame(param)
+  parameters_list[[iter]] <- parameters
 }
 
-xgboost.time[[6]] = system.time({
-  xgb3 <- xgb.train(params = params_xgb, 
-                    data = dtrain, 
-                    nrounds = 10, 
-                    watchlist = list(test = dtest, train = dtrain), 
-                    maximize = F, 
-                    eval_metric = "rmse", 
-                    n_jobs = -1,
-                    tree_method = 'hist') # this accelerates the process by 3x
-  print ('finish training')
-}) 
+# Create object that contains all randomly created hyperparameters
+parameters_df = do.call(rbind, parameters_list)
 
-xgboost.time
+# Use randomly created parameters to create 10,000 XGBoost-models
+for (row in 1:nrow(parameters_df)){
+  set.seed(20)
+  mdcv <- xgb.train(data=dtrain,
+                    booster = "gbtree",
+                    objective = "reg:squarederror",
+                    max_depth = parameters_df$max_depth[row],
+                    eta = parameters_df$eta[row],
+                    subsample = parameters_df$subsample[row],
+                    colsample_bytree = parameters_df$colsample_bytree[row],
+                    min_child_weight = parameters_df$min_child_weight[row],
+                    nrounds= 300,
+                    eval_metric = "error",
+                    early_stopping_rounds= 30,
+                    print_every_n = 10,
+                    watchlist = list(train= dtrain, val= dtest)
+  )
+  lowest_error <- as.data.frame(1 - min(mdcv$evaluation_log$val_error))
+  lowest_error_list[[row]] <- lowest_error
+}
 
 ### TESTING THE MODEL ###--------------------------------------------
 
