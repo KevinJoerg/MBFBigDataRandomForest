@@ -56,6 +56,8 @@ data <- na.omit(data)
 # transform
 data$is_new = as.factor(data$is_new)   
 
+data <- data[1:10000,]
+
 
 ### SPLIT TRAINING AND TESTING DATASET ### ----------------------------------------------
 
@@ -213,7 +215,6 @@ params_xgb <- list(booster = mytune$x$booster,
 # }
 # xgbtree.time
 
-
 # using cross-validation to find optimal nrounds parameter
 xgbcv <- xgb.cv(params = params_xgb,
                 data = dtrain, 
@@ -225,7 +226,7 @@ xgbcv <- xgb.cv(params = params_xgb,
                 early_stopping_rounds = 50, # stop if we don't see much improvement
                 maximize = F, # should the metric be maximized?
                 verbose = 2, 
-                tree_method = tree_method[i])
+                tree_method = 'hist')
 
 # Result of best iteration
 xgb_best_iteration <- xgbcv$best_iteration
@@ -290,9 +291,8 @@ Rather it does the parallelization WITHIN a single tree my using openMP to creat
 # best is to let out the num threads, as xgboost takes all by default
 xgb3 <- xgb.train(params = params_xgb, 
                   data = dtrain, 
-                  nrounds = 10, 
+                  nrounds = xgb_best_iteration, 
                   watchlist = list(test = dtest, train = dtrain), 
-                  nthread = threads[i],
                   maximize = F, 
                   eval_metric = "rmse", 
                   tree_method = 'hist') # this accelerates the process 
@@ -301,52 +301,52 @@ xgb3 <- xgb.train(params = params_xgb,
 
 ### ALTERNATIVE APPROACH ###--------------------------------------------
 
-# Create 10,000 rows with random hyperparameters
-
-set.seed(20)
-
-# Create empty lists
-lowest_error_list = list()
-parameters_list = list()
-
-# create grid
-for (iter in 1:10){
-  param <- list(booster = "gbtree",
-                objective = "reg:squarederror",
-                max_depth = base::sample(3:10, 1),
-                eta = runif(1, .01, .3),
-                subsample = runif(1, .7, 1),
-                colsample_bytree = runif(1, .6, 1),
-                min_child_weight = base::sample(0:10, 1), 
-                tree_method = 'hist'
-  )
-  parameters <- as.data.frame(param)
-  parameters_list[[iter]] <- parameters
-}
-
-# Create object that contains all randomly created hyperparameters
-parameters_df = do.call(rbind, parameters_list)
-
-# Use randomly created parameters to create 10,000 XGBoost-models
-for (row in 1:nrow(parameters_df)){
-  set.seed(20)
-  mdcv <- xgb.train(data=dtrain,
-                    booster = "gbtree",
-                    objective = "reg:squarederror",
-                    max_depth = parameters_df$max_depth[row],
-                    eta = parameters_df$eta[row],
-                    subsample = parameters_df$subsample[row],
-                    colsample_bytree = parameters_df$colsample_bytree[row],
-                    min_child_weight = parameters_df$min_child_weight[row],
-                    nrounds= 300,
-                    eval_metric = "error",
-                    early_stopping_rounds= 30,
-                    print_every_n = 10,
-                    watchlist = list(train= dtrain, val= dtest)
-  )
-  lowest_error <- as.data.frame(1 - min(mdcv$evaluation_log$val_error))
-  lowest_error_list[[row]] <- lowest_error
-}
+# # Create 10,000 rows with random hyperparameters
+# 
+# set.seed(20)
+# 
+# # Create empty lists
+# lowest_error_list = list()
+# parameters_list = list()
+# 
+# # create grid
+# for (iter in 1:10){
+#   param <- list(booster = "gbtree",
+#                 objective = "reg:squarederror",
+#                 max_depth = base::sample(3:10, 1),
+#                 eta = runif(1, .01, .3),
+#                 subsample = runif(1, .7, 1),
+#                 colsample_bytree = runif(1, .6, 1),
+#                 min_child_weight = base::sample(0:10, 1), 
+#                 tree_method = 'hist'
+#   )
+#   parameters <- as.data.frame(param)
+#   parameters_list[[iter]] <- parameters
+# }
+# 
+# # Create object that contains all randomly created hyperparameters
+# parameters_df = do.call(rbind, parameters_list)
+# 
+# # Use randomly created parameters to create 10,000 XGBoost-models
+# for (row in 1:nrow(parameters_df)){
+#   set.seed(20)
+#   mdcv <- xgb.train(data=dtrain,
+#                     booster = "gbtree",
+#                     objective = "reg:squarederror",
+#                     max_depth = parameters_df$max_depth[row],
+#                     eta = parameters_df$eta[row],
+#                     subsample = parameters_df$subsample[row],
+#                     colsample_bytree = parameters_df$colsample_bytree[row],
+#                     min_child_weight = parameters_df$min_child_weight[row],
+#                     nrounds= 300,
+#                     eval_metric = "error",
+#                     early_stopping_rounds= 50,
+#                     print_every_n = 10,
+#                     watchlist = list(train= dtrain, val= dtest)
+#   )
+#   lowest_error <- as.data.frame(1 - min(mdcv$evaluation_log$val_error))
+#   lowest_error_list[[row]] <- lowest_error
+# }
 
 ### TESTING THE MODEL ###--------------------------------------------
 
