@@ -56,7 +56,7 @@ data <- na.omit(data)
 # transform
 data$is_new = as.factor(data$is_new)   
 
-data <- data[1:10000,]
+# data <- data[1:10000,]
 
 
 ### SPLIT TRAINING AND TESTING DATASET ### ----------------------------------------------
@@ -86,7 +86,7 @@ sparse_matrix_train@Dimnames[[2]]
 dtrain <- xgb.DMatrix(data = sparse_matrix_train, label = train_target)
 dtest <- xgb.DMatrix(data = sparse_matrix_test, label=test_target)
 
-rm(sparse_matrix_train, sparse_matrix_test, data, train_ind, carListingsClean)
+rm(data, train_ind, carListingsClean)
 gc()
 
 
