@@ -44,6 +44,8 @@ omit <- c('vin',
           'city', 
           'description', 
           'dealer_zip', 
+          'franchise_dealer',
+          'franchise_make', # as we already account for the brand
           'longitude', 'latitude', # as we already account for it in the dependent variable
           'listing_id',
           'main_picture_url', 
@@ -54,7 +56,6 @@ omit <- c('vin',
           'trim_name',
           'wheel_system_display', 
           'exterior_color', 'interior_color', # as we already account for other color
-          'franchise_make', # as we already account for the brand
           'major_options', # too detailed
           'model_name' # too many options
 )
@@ -64,13 +65,11 @@ for (column in omit) {carListingsClean[[column]] <- NULL}
 # let us clean and convert the variables correctly
 colnames <- c(back_legroom = 'numeric',
               body_type = 'factor', 
-              city = 'character', 
               city_fuel_economy = 'numeric', 
               daysonmarket = 'numeric', 
               engine_cylinders = 'factor', # should be separated
               engine_displacement = 'numeric', # ?
               engine_type = 'factor', # This should be factor !!!!!!!!!!!!!!!!!
-              franchise_dealer = 'boolean', 
               front_legroom  = 'numeric', 
               fuel_tank_volume  = 'numeric', 
               fuel_type = 'factor', 
@@ -99,9 +98,10 @@ colnames <- c(back_legroom = 'numeric',
               DemRepRatio = 'numeric'
 )
 
+
 # make conversions. Some need physical input []
 for (i in colnames(carListingsClean)) {
-  if (colnames[i][[1]] == 'numeric') {
+  if (colnames[[i]] == 'numeric') {
     carListingsClean[[i]] <- as.ff(as.numeric(carListingsClean[[i]][]))
   } else if (colnames[[i]] == 'factor'){
     carListingsClean[[i]] <- as.ff(as.factor(carListingsClean[[i]][]))
@@ -127,7 +127,7 @@ rm(n)
 str(carListingsClean[])
 
 # filter out listings with listed date before 2020
-carListingsClean <- (subset.ffdf(carListingsClean, listed_date > "2020-01-01", drop = TRUE))
+carListingsClean <- (subset.ffdf(carListingsClean, listed_date > as.Date("2020-01-01"), drop = TRUE))
 
 # filter out listings with days older than 300, we don't need to as the range is between 0 and 259
 range(carListingsClean[['daysonmarket']])
@@ -173,26 +173,26 @@ list <- str_split(carListingsClean$engine_type[], " ")
 carListingsClean$engine_type <- as.ff(as.factor(as.character(lapply(list, '[[', 1))))
 
 # remove unnecessary variables
-remove(list, rpm, column, colnames, count_nas, i, omit, sorted, testFunction)
+remove(list, rpm, column, omit, testFunction)
 
 # check if it worked
 str(carListingsClean[])
 nrow(carListingsClean)
 
+
 ### FILTER OUTLIERS ### --------------------------------------------
 
+# define variables which are numeric
 num_variables = c('back_legroom', 'city_fuel_economy', 'engine_displacement', 'front_legroom', 'fuel_tank_volume', 'height', 'highway_fuel_economy', 
                   'horsepower', 'length', 'maximum_seating', 'mileage', 'price', 'savings_amount', 'seller_rating', 'torque', 'wheelbase', 'width', 
                   'year', 'DemRepRatio', 'rpm')
 
-carListings.df <- data.frame(carListingsClean)
+carListings.df <- data.frame(carListingsClean) %>% select(num_variables)
 
 # plot histograms with graphics
 for (i in num_variables) {
   hist(carListings.df[[i]], main = paste0(i, ' Histogram'), xlab = i)
 }
-
-str(carListingsClean)
 
 # filter outliers in savings_amount, prices, horsepower, and more
 carListingsClean <- subset.ffdf(carListingsClean, city_fuel_economy < 70, drop = TRUE)
@@ -203,7 +203,6 @@ carListingsClean <- subset.ffdf(carListingsClean, mileage < 300000, drop = TRUE)
 carListingsClean <- subset.ffdf(carListingsClean, rpm > 2000, drop = TRUE)
 carListingsClean <- subset.ffdf(carListingsClean, savings_amount < 2500, drop = TRUE)
 carListingsClean <- subset.ffdf(carListingsClean, year > 1900, drop = TRUE)
-
 
 # hist.ff only works with some??
 hist(carListings.df[['back_legroom']])
@@ -217,7 +216,6 @@ carListings.df <- data.frame(carListingsClean)
 for (i in num_variables) {
   hist(carListings.df[[i]], main = paste0(i, ' Histogram'), xlab = i)
 }
-
 
 # Save this new clean2 ffdf
 system("mkdir ffdfClean2")
