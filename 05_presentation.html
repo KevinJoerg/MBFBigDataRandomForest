@@ -3175,7 +3175,7 @@ slide:not(.current) .plotly.html-widget{
 
 <h3><strong>Why was the interest in the election that high?</strong></h3>
 
-<p>Clash of different Ideologies:</p>
+<p>There was a clash of different socio-economic groups:</p>
 
 <center>
 
@@ -3205,7 +3205,7 @@ slide:not(.current) .plotly.html-widget{
 
 <center>
 
-</article></slide><slide class=""><hgroup><h2>Data gathering(1/4)</h2></hgroup><article  id="data-gathering14">
+</article></slide><slide class=""><hgroup><h2>Data gathering(1/3)</h2></hgroup><article  id="data-gathering13">
 
 <h3><strong>Two data samples were used</strong></h3>
 
@@ -3218,7 +3218,7 @@ slide:not(.current) .plotly.html-widget{
 <li>resulting in a total of ~200 million data points</li>
 </ul>
 
-<p></font> <strong>total file size of ~9.3GB</strong></p></li>
+<p></font> <strong>Total file size of ~9.3GB</strong></p></li>
 <li><p>Precinct level voting outcome in the 2020 US-presidential election <strong><em>[MIT Election Lab]</em></strong> <font size="-0.3"></p>
 
 <ul>
@@ -3226,10 +3226,10 @@ slide:not(.current) .plotly.html-widget{
 <li>Number of votes for republican, democrat and other Presidential candidates</li>
 </ul>
 
-<p></font> <strong>file size of 0.2GB</strong></p></li>
+<p></font> <strong>Total file size of 0.2GB</strong></p></li>
 </ol>
 
-</article></slide><slide class=""><hgroup><h2>Data merging (2/4)</h2></hgroup><article  id="data-merging-24">
+</article></slide><slide class=""><hgroup><h2>Data merging (2/3)</h2></hgroup><article  id="data-merging-23">
 
 <p>In a second step, the two data sets were merged</p>
 
@@ -3244,40 +3244,21 @@ slide:not(.current) .plotly.html-widget{
 <p><strong>Solution:</strong></p>
 
 <ol>
-<li>Package &lsquo;jvamisc&rsquo; retrieved from github to map lattitudonal &amp; longitudonal car data to specific county</li>
+<li>Package &lsquo;jvamisc&rsquo; retrieved from github to map latitudinal &amp; longitudinal car data to specific county</li>
 <li>Add county voting outcome to each car data</li>
 <li>Full data set constructed</li>
 </ol>
 
 <p><strong>Output</strong>: Cars data and Democratic to republican ratio in one df</p>
 
-</article></slide><slide class=""><hgroup><h2>Data cleaning (3/4)</h2></hgroup><article  id="data-cleaning-34">
+</article></slide><slide class=""><hgroup><h2>Data cleaning (3/3)</h2></hgroup><article  id="data-cleaning-33">
 
-<p>Three step cleaning approach</p>
+<p>Two step cleaning approach</p>
 
 <ol>
 <li><strong>Strain Splitting</strong> and <strong>variable type definition</strong></li>
-<li>Omit <strong>lacking datapoints</strong> <font size="-0.3">
-
-<ul>
-<li>only cars with data on all potential variables were considered </font></li>
-</ul></li>
-<li><strong>Conceptional exclusion</strong> <font size="-0.3">
-
-<ul>
-<li>some independent variables were heavily correlated to others e.g. hp vs. rpm</li>
-<li>Non-distinctional car characteristic were excluded e.g. color?? </font></li>
-</ul></li>
-<li><strong>Outliers</strong> <font size="-0.3">
-
-<ul>
-<li>outliers were excluded by visually inspecting the factorial histograms </font></li>
-</ul></li>
+<li>Visually identified <strong>Outliers</strong> were excluded with an ff out-of-memory approach <font size="-0.3"></li>
 </ol>
-
-</article></slide><slide class=""><hgroup><h2>Data cleaning: filtering criteria (4/4)</h2></hgroup><article  id="data-cleaning-filtering-criteria-44">
-
-<p>Observations not fulfilling the below requirements were regarded as outliers and were thus excluded: <font size="-0.3"></p>
 
 <ul>
 <li>city fuel economy &lt; 70 miles per gallon</li>
@@ -3290,9 +3271,21 @@ slide:not(.current) .plotly.html-widget{
 <li>year &gt; 1900</li>
 </ul>
 
-<p></font></p>
+</article></slide><slide class=""><hgroup><h2>Linear regressions: The sample in use</h2></hgroup><article  id="linear-regressions-the-sample-in-use">
 
-</article></slide><slide class=""><hgroup><h2>Linear regressions</h2></hgroup><article  id="linear-regressions">
+<ol>
+<li>Omit unnecessary dependent variables <font size="-0.3">
+
+<ul>
+<li>e.g. longitudinale and latitudinale data was ecluded after merching </font></li>
+</ul></li>
+<li><strong>Conceptional exclusion</strong> <font size="-0.3">
+
+<ul>
+<li>heavily multicollinear independent variables (e.g. hp vs. rpm)</li>
+<li>Non-distinctional car characteristic were excluded e.g. color?? </font></li>
+</ul></li>
+</ol>
 
 <h3><strong>Dependent variable:</strong></h3>
 
@@ -3331,7 +3324,7 @@ slide:not(.current) .plotly.html-widget{
 <li>Mileage</li>
 <li>Horsepower</li>
 <li>Length</li>
-<li>Max seeting</li>
+<li>Max seating</li>
 <li>Body type</li>
 <li>Brand name</li>
 <li>State</li>
