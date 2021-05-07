@@ -97,7 +97,7 @@ carListings.analyze <- as.data.frame(lapply(carListings.analyze, addFactorOther)
 
 for (column in colnames(carListings.analyze)){
   if (is.factor(carListings.analyze[, column])){
-
+    
   }
   else{
     carListings.analyze[,column] <- scale(carListings.analyze[,column])
@@ -139,7 +139,7 @@ for (column in colnames(carListings.analyze)){
   else{
     carListings.analyze[,column] <- scale(carListings.analyze[,column])
   }
-
+  
 }
 
 
@@ -252,6 +252,5 @@ x <- as.ffdf(trees)
 a <- bigglm(log(Volume)~log(Girth)+log(Height), 
             data=x[], chunksize=10, sandwich=TRUE)
 
-install.packages("gputools_1.1.tar.gz")
 
 
