@@ -217,6 +217,36 @@ for (i in num_variables) {
   hist(carListings.df[[i]], main = paste0(i, ' Histogram'), xlab = i)
 }
 
+# Now only select the relevant variables
+variablesOfInterest <- c('DemRepRatio', 'is_new', 'mileage', 'price', 'city_fuel_economy', 'horsepower', 'length', 'maximum_seating', 'body_type', 'make_name', 'state')
+carListingsClean <- carListingsClean[variablesOfInterest]
+
+# New df is small enough to run in RAM
+carListings.df <- as.data.frame(carListingsClean)
+
+# Find percentage of cases of the factor variables
+pct <- lapply(carListings.df, function(x) table(x) / length(x))
+
+# Function to add level "Other"
+addFactorOther <- function(x){
+  if(is.factor(x)) return(factor(x, levels=c(levels(x), "Other")))
+  return(x)
+}
+
+# Apply the function above to all columns
+carListings.df <- as.data.frame(lapply(carListings.df, addFactorOther))
+
+# For each factor column, summarize cases that occur with less than 1% frequency as Other
+for (column in colnames(carListings.df)){
+  if (is.factor(carListings.df[, column])){
+    drop <- pct[[column]]
+    drop <- names(drop[drop < 0.01])
+    carListings.df[is.element(carListings.df[,column], drop), column] <- "Other"
+  }
+}
+
+update(carListingsClean, carListings.df)
+
 # Save this new clean2 ffdf
 system("mkdir ffdfClean2")
 save.ffdf(carListingsClean, dir = './ffdfClean2', overwrite = TRUE)
