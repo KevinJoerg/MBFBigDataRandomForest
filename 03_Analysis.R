@@ -65,6 +65,8 @@ carListings.df.forecast <- carListings.df[is.na(carListings.df$DemRepRatio), ]
 # For OLS, drop state and county
 countyTrain <- carListings.df.train$county
 countyForecast <- carListings.df.forecast$county
+stateTrain <- carListings.df.train$state
+stateForecast <- carListings.df.forecast$state
 carListings.df.train$state <- NULL
 carListings.df.train$county <- NULL
 carListings.df.forecast$state <- NULL
@@ -111,7 +113,7 @@ ols_correlations(ols)
 
 # Test forecast on existing data ***********************************************
 forecast_evaluate <- predict(ols, carListings.df.train)
-forecast_evaluate <- as.data.frame(cbind(as.character(countyTrain), forecast_evaluate))
+forecast_evaluate <- as.data.frame(cbind(cbind(as.character(stateTrain), as.character(countyTrain)), forecast_evaluate))
 
 # Scale back
 mu <- attr(carListings.df$DemRepRatio,"scaled:center")
@@ -121,32 +123,36 @@ forecast_evaluate <- na.omit(forecast_evaluate)
 
 # Count number of car listings per state
 forecast_evaluate.count <- forecast_evaluate %>%
-  group_by(V1) %>%
-  summarise(forecast_evaluate = length(forecast_evaluate)) %>%
+  group_by(V1, V2) %>%
+  summarise(forecast = length(forecast_evaluate)) %>%
   ungroup
 
 # Average value as forecast
 forecast_evaluate <- forecast_evaluate %>%
-  group_by(V1) %>%
+  group_by(V1, V2) %>%
   summarise(forecast = mean(forecast, na.rm = TRUE)) %>%
   ungroup
 
 # Only keep forecasts that are based on at least 100 observations
 forecast_evaluate <- forecast_evaluate[forecast_evaluate.count$forecast > 100, ]
-names(forecast_evaluate) <- c('county', 'forecast')
+names(forecast_evaluate) <- c('state', 'county', 'forecast')
 
 # Add true values
-forecast_evaluate <- left_join(forecast_evaluate, carListings.df[,c('county', 'DemRepRatio')])
+forecast_evaluate <- merge(forecast_evaluate, carListings.df[,c('state', 'county', 'DemRepRatio')],
+                           by.x = c('state', 'county'), by.y = c("state", "county"),
+                           all.x = TRUE)
 forecast_evaluate <- unique(forecast_evaluate)
 
 # Scale back
 forecast_evaluate$DemRepRatio <- (as.numeric(forecast_evaluate$DemRepRatio)*std) + mu
+
+# Evaluate with OLS
 olsTest <- lm('DemRepRatio ~ forecast', data = forecast_evaluate)
 summary(olsTest)
 
 # Forecast *********************************************************************
 forecast <- predict(ols, carListings.df.forecast)
-forecast <- as.data.frame(cbind(as.character(countyForecast), forecast))
+forecast <- as.data.frame(cbind(cbind(as.character(stateForecast), as.character(countyForecast)), forecast))
 
 # Scale back
 mu <- attr(carListings.df$DemRepRatio,"scaled:center")
@@ -156,13 +162,13 @@ forecast <- na.omit(forecast)
 
 # Count number of car listings per state
 forecast.count <- forecast %>%
-  group_by(V1) %>%
+  group_by(V1, V2) %>%
   summarise(forecast = length(forecast)) %>%
   ungroup
 
 # Average value as forecast
 forecast <- forecast %>%
-  group_by(V1) %>%
+  group_by(V1, V2) %>%
   summarise(forecast = mean(forecast, na.rm = TRUE)) %>%
   ungroup
 
@@ -171,11 +177,22 @@ forecast <- forecast[forecast.count$forecast > 100, ]
 
 # Scale with coefficients for optimal forecast
 forecast$forecast <- olsTest$coefficients[1] + olsTest$coefficients[2] * forecast$forecast
+forecast <- as.data.frame(forecast)
 
+# Visualize ********************************************************************
 
+library(raster)
+library(leaflet)
 
+# Get USA polygon data
+USA <- getData("GADM", country = "usa", level = 2)
+USA@data$NAME_0 <- as.character(lapply(USA@data$NAME_0, tolower))
+USA@data$NAME_1 <- as.character(lapply(USA@data$NAME_1, tolower))
+USA@data$NAME_2 <- as.character(lapply(USA@data$NAME_2, tolower))
 
-
+temp <- merge(USA, forecast,
+              by.x = c("NAME_1", "NAME_2"), by.y = c("V1", "V2"),
+              all.x = TRUE)
 
 
 
