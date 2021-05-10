@@ -241,7 +241,7 @@ carListings.df <- as.data.frame(lapply(carListings.df, addFactorOther))
 
 # For each factor column, summarize cases that occur with less than 1% frequency as Other
 for (column in colnames(carListings.df)){
-  if (is.factor(carListings.df[, column])){
+  if (is.factor(carListings.df[, column]) & column != 'county'){
     drop <- pct[[column]]
     drop <- names(drop[drop < 0.01])
     carListings.df[is.element(carListings.df[,column], drop), column] <- "Other"
