@@ -178,6 +178,7 @@ forecast <- forecast[forecast.count$forecast > 100, ]
 # Scale with coefficients for optimal forecast
 forecast$forecast <- olsTest$coefficients[1] + olsTest$coefficients[2] * forecast$forecast
 forecast <- as.data.frame(forecast)
+names(forecast) <- c('state', 'county', 'forecast')
 
 # Visualize ********************************************************************
 
@@ -190,16 +191,50 @@ USA@data$NAME_0 <- as.character(lapply(USA@data$NAME_0, tolower))
 USA@data$NAME_1 <- as.character(lapply(USA@data$NAME_1, tolower))
 USA@data$NAME_2 <- as.character(lapply(USA@data$NAME_2, tolower))
 
-temp <- merge(USA, forecast,
-              by.x = c("NAME_1", "NAME_2"), by.y = c("V1", "V2"),
+temp <- merge(USA, forecast_evaluate,
+              by.x = c("NAME_1", "NAME_2"), by.y = c("state", "county"),
               all.x = TRUE)
 
+# Create a color range for the markers
+pal.quantile <- colorQuantile("RdYlBu",
+                              domain =  temp$DemRepRatio, reverse = FALSE, n = 11)
+mypal <- pal.quantile(temp$DemRepRatio)
+
+leaflet() %>% 
+  addProviderTiles("OpenStreetMap.Mapnik") %>%
+  setView(lat = 39.8283, lng = -98.5795, zoom = 4) %>%
+  addPolygons(data = USA, stroke = FALSE, smoothFactor = 0.2, fillOpacity = 0.7,
+              fillColor = mypal,
+              popup = paste("Region: ", temp$NAME_2, "<br>",
+                            "Value: ", round(temp$DemRepRatio,3), "<br>")) #%>%
+  # addLegend(position = "bottomleft", pal = pal.quantile, values = temp$DemRepRatio,
+  #           title = "Value",
+  #           opacity = 1)
+
+# Now add a map with forecasts
+names(forecast) <- c('state', 'county', 'DemRepRatio')
+DemRepRatioAllCounties <- rbind(forecast_evaluate[,c('state', 'county', 'DemRepRatio')], forecast)
 
 
+temp <- merge(USA, DemRepRatioAllCounties,
+              by.x = c("NAME_1", "NAME_2"), by.y = c("state", "county"),
+              all.x = TRUE)
 
+# Create a color range for the markers
+pal.quantile <- colorQuantile("RdYlBu",
+                              domain =  temp$DemRepRatio, reverse = FALSE, n = 11)
+mypal <- pal.quantile(temp$DemRepRatio)
 
-
-
+leaflet() %>% 
+  addProviderTiles("OpenStreetMap.Mapnik") %>%
+  setView(lat = 39.8283, lng = -98.5795, zoom = 4) %>%
+  addPolygons(data = USA, stroke = FALSE, smoothFactor = 0.2, fillOpacity = 0.7,
+              fillColor = mypal,
+              popup = paste("Region: ", temp$NAME_2, "<br>",
+                            "Value: ", round(temp$DemRepRatio,3), "<br>"))# %>%
+  # addLegend(position = "topleft", pal = pal.quantile, values = temp$DemRepRatio,
+  #           title = "Value",
+  #           opacity = 1)
 
 
 
