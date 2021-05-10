@@ -12,6 +12,7 @@ library(lobstr)
 ### SETUP ### ------------------------------------------------
 
 rm(list = ls())
+gc()
 
 # set wd to where the source file is
 # make sure you have the datafiles in a /data/ folder
@@ -34,8 +35,9 @@ sorted <- rev(sort(count_nas))
 barplot(sorted, cex.names = 0.5, las = 2)
 title(main = '% NAs in used cars data')
 
-# drop all variables for which we have less than 80% observations
+# drop all variables for which we have less than 80% observations (just not DemRepRatio)
 omit <- names(which(sorted>=0.2))
+omit <- omit[omit != 'DemRepRatio']
 for (column in omit) {carListingsClean[[column]] <- NULL}
 rm(omit, column, count_nas, sorted)
 
@@ -95,7 +97,8 @@ colnames <- c(back_legroom = 'numeric',
               year = 'numeric', 
               state = 'factor', 
               county = 'character', # too many, can we break it down?
-              DemRepRatio = 'numeric'
+              DemRepRatio = 'numeric',
+              StateDemRepRatio = 'numeric'
 )
 
 
@@ -218,7 +221,7 @@ for (i in num_variables) {
 }
 
 # Now only select the relevant variables
-variablesOfInterest <- c('DemRepRatio', 'is_new', 'mileage', 'price', 'city_fuel_economy', 'horsepower', 'length', 'maximum_seating', 'body_type', 'make_name', 'state')
+variablesOfInterest <- c('DemRepRatio','StateDemRepRatio', 'is_new', 'mileage', 'price', 'city_fuel_economy', 'horsepower', 'length', 'maximum_seating', 'body_type', 'make_name', 'state')
 carListingsClean <- carListingsClean[variablesOfInterest]
 
 # New df is small enough to run in RAM
