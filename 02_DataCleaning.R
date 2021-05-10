@@ -221,7 +221,7 @@ for (i in num_variables) {
 }
 
 # Now only select the relevant variables
-variablesOfInterest <- c('DemRepRatio','StateDemRepRatio', 'is_new', 'mileage', 'price', 'city_fuel_economy', 'horsepower', 'length', 'maximum_seating', 'body_type', 'make_name', 'state')
+variablesOfInterest <- c('DemRepRatio','StateDemRepRatio', 'is_new', 'mileage', 'price', 'city_fuel_economy', 'horsepower', 'length', 'maximum_seating', 'body_type', 'make_name', 'state', 'county')
 carListingsClean <- carListingsClean[variablesOfInterest]
 
 # New df is small enough to run in RAM
