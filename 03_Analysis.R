@@ -109,6 +109,41 @@ ols_vif_tol(ols)
 # accounted for by the other predictors.
 ols_correlations(ols)
 
+# Test forecast on existing data ***********************************************
+forecast_evaluate <- predict(ols, carListings.df.train)
+forecast_evaluate <- as.data.frame(cbind(as.character(countyTrain), forecast_evaluate))
+
+# Scale back
+mu <- attr(carListings.df$DemRepRatio,"scaled:center")
+std <- attr(carListings.df$DemRepRatio,"scaled:scale")
+forecast_evaluate$forecast <- (as.numeric(forecast_evaluate$forecast)*std) + mu
+forecast_evaluate <- na.omit(forecast_evaluate)
+
+# Count number of car listings per state
+forecast_evaluate.count <- forecast_evaluate %>%
+  group_by(V1) %>%
+  summarise(forecast_evaluate = length(forecast_evaluate)) %>%
+  ungroup
+
+# Average value as forecast
+forecast_evaluate <- forecast_evaluate %>%
+  group_by(V1) %>%
+  summarise(forecast = mean(forecast, na.rm = TRUE)) %>%
+  ungroup
+
+# Only keep forecasts that are based on at least 100 observations
+forecast_evaluate <- forecast_evaluate[forecast_evaluate.count$forecast > 100, ]
+names(forecast_evaluate) <- c('county', 'forecast')
+
+# Add true values
+forecast_evaluate <- left_join(forecast_evaluate, carListings.df[,c('county', 'DemRepRatio')])
+forecast_evaluate <- unique(forecast_evaluate)
+
+# Scale back
+forecast_evaluate$DemRepRatio <- (as.numeric(forecast_evaluate$DemRepRatio)*std) + mu
+olsTest <- lm('DemRepRatio ~ forecast', data = forecast_evaluate)
+summary(olsTest)
+
 # Forecast *********************************************************************
 forecast <- predict(ols, carListings.df.forecast)
 forecast <- as.data.frame(cbind(as.character(countyForecast), forecast))
@@ -133,6 +168,23 @@ forecast <- forecast %>%
 
 # Only keep forecasts that are based on at least 100 observations
 forecast <- forecast[forecast.count$forecast > 100, ]
+
+# Scale with coefficients for optimal forecast
+forecast$forecast <- olsTest$coefficients[1] + olsTest$coefficients[2] * forecast$forecast
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
