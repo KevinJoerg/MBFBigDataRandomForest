@@ -188,7 +188,7 @@ nrow(carListingsClean)
 # define variables which are numeric
 num_variables = c('back_legroom', 'city_fuel_economy', 'engine_displacement', 'front_legroom', 'fuel_tank_volume', 'height', 'highway_fuel_economy', 
                   'horsepower', 'length', 'maximum_seating', 'mileage', 'price', 'savings_amount', 'seller_rating', 'torque', 'wheelbase', 'width', 
-                  'year', 'DemRepRatio', 'rpm')
+                  'year', 'DemRepRatio', 'StateDemRepRatio', 'rpm')
 
 carListings.df <- data.frame(carListingsClean) %>% select(num_variables)
 
@@ -197,14 +197,14 @@ for (i in num_variables) {
   hist(carListings.df[[i]], main = paste0(i, ' Histogram'), xlab = i)
 }
 
-# filter outliers in savings_amount, prices, horsepower, and more
-carListingsClean <- subset.ffdf(carListingsClean, city_fuel_economy < 70, drop = TRUE)
-carListingsClean <- subset.ffdf(carListingsClean, highway_fuel_economy < 60, drop = TRUE)
-carListingsClean <- subset.ffdf(carListingsClean, horsepower < 600, drop = TRUE)
+# filter outliers in savings_amount, prices, horsepower, and more. Keep observations with NA
+carListingsClean <- subset.ffdf(carListingsClean, city_fuel_economy < 70 | is.na(city_fuel_economy), drop = TRUE)
+carListingsClean <- subset.ffdf(carListingsClean, highway_fuel_economy < 60 | is.na(highway_fuel_economy), drop = TRUE)
+carListingsClean <- subset.ffdf(carListingsClean, horsepower < 600 | is.na(horsepower), drop = TRUE)
 carListingsClean <- subset.ffdf(carListingsClean, price < 200000, drop = TRUE)
 carListingsClean <- subset.ffdf(carListingsClean, mileage < 300000, drop = TRUE)
-carListingsClean <- subset.ffdf(carListingsClean, rpm > 2000, drop = TRUE)
-carListingsClean <- subset.ffdf(carListingsClean, savings_amount < 2500, drop = TRUE)
+carListingsClean <- subset.ffdf(carListingsClean, rpm > 2000 | is.na(rpm), drop = TRUE)
+# carListingsClean <- subset.ffdf(carListingsClean, savings_amount < 2500, drop = TRUE) We don't care about this, is just advertising
 carListingsClean <- subset.ffdf(carListingsClean, year > 1900, drop = TRUE)
 
 # hist.ff only works with some??
