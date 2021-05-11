@@ -48,7 +48,7 @@ load.ffdf(dir='./ffdfClean2')
 
 ### DATA CLEANING ### ----------------------------------------------
 
-#carListingsClean <- data.frame(carListingsClean[1:1000,])
+carListingsClean <- data.frame(carListingsClean[1:1000,])
 
 # delete columns we don't need for the regression
 carListingsClean$county <- NULL
@@ -282,7 +282,7 @@ Rather it does the parallelization WITHIN a single tree my using openMP to creat
 xgb <- xgb.train(params = params_xgb, 
                   data = dtrain, 
                   nrounds = xgb_best_iteration, 
-                  #watchlist = list(test = dtest, train = dtrain), 
+                  watchlist = list(test = dtest, train = dtrain), 
                   maximize = F, 
                   eval_metric = "rmse", 
                   tree_method = 'hist') # this accelerates the process 
@@ -369,6 +369,16 @@ results_xgb
 
 # PLOTS --------------------------------------------------
 
+# from wide to long dataframe needed for plotting
+log <- xgb$evaluation_log %>% gather(key = 'dataset', value = 'RMSE', -iter)
+
+# plot RMSE improvement 
+plot_rmse <- ggplot(data = log, aes(x = iter, y = RMSE, color = dataset)) +
+  geom_point() +
+  xlab('iteration') +
+  ggtitle('Return Mean Squared Error over iterations')
+plot_rmse
+
 # plot an example tree of all
 xgb.plot.tree(feature_names = names(dtrain), 
               model = xgb, 
@@ -438,6 +448,7 @@ dir.create('./plots/')
 dir.create('./models/')
 
 # save plot
+ggsave('plot_rmse', path = './Plots/', plot = plot_rmse, device = 'png')
 ggsave('plot_xgb_v1.png', path = './Plots/', plot = plot_v1, device = 'png')
 ggsave('plot_xgb_v2.png', path = './Plots/', plot = plot_v2, device = 'png')
 ggsave('plot_xgb_v3.png', path = './Plots/', plot = plot_v3, device = 'png')

@@ -15,6 +15,9 @@ and since XGBoost is essentially an ensemble algorithm comprised of decision tre
 it does not require normalization for the inputs either.
 "
 
+# first install libomp by using the termin and the following command: 
+# brew install libomp
+
 library(libomp)
 library(xgboost)
 library(Matrix)
@@ -34,6 +37,7 @@ library(ffbase2)
 
 ### SETUP ### ----------------------------------------------
 
+# start timer
 tic()
 
 rm(list = ls())
@@ -56,6 +60,7 @@ carListingsClean$StateDemRepRatio <- NULL
 # omit the NAs for XGBoost
 carListingsClean <- na.omit(carListingsClean)
 
+carListingsClean <- carListingsClean[1:10000,]
 
 ### SPLIT TRAINING AND TESTING DATASET ### ----------------------------------------------
 # to clean and modify the data we can load it into RAM as it is small enough
@@ -87,7 +92,16 @@ fwrite(matrix_train, file = './data/train.csv', row.names = FALSE)
 fwrite(matrix_test, file = './data/test.csv', row.names = FALSE)
 
 
+
+
 ### XGBOOST ### ----------------------------------------------
+
+# remove already present cache
+file.remove('dtrain.cache.row.page')
+file.remove('dtrain.cache')
+file.remove('dtest.cache.row.page')
+file.remove('dtest.cache')
+gc()
 
 # load data as out-of-memory for XGBoost
 # the #dtrain.cache specifies that it should be loaded out of memory
@@ -96,22 +110,49 @@ dtest = xgb.DMatrix(data = './data/test.csv?format=csv&label_column=0#dtest.cach
 
 # set the parameter
 params_xgb <- list(booster = 'dart', 
-                  objective = "reg:squarederror",
-                  max_depth = 5,
-                  eta= 0.1) 
+                   objective = "reg:squarederror",
+                   max_depth = 5,
+                   eta= 0.1, 
+                   eval_metric = "rmse"
+                   ) 
 
 # train xgboost
 xgb <- xgb.train(data = dtrain, 
                  params = params_xgb,
-                 nrounds = 10, 
+                 nrounds = 100L, 
                  maximize = F, 
-                 eval_metric = "rmse", 
-                 tree_method = 'hist',
                  print_every_n = 1, 
                  watchlist = list(train = dtrain, test = dtest), 
-                 early_stopping_rounds = 10,
-                 verbose = 2)  
+                 early_stopping_rounds = 50,
+                 verbose = 2, 
+                 tree_method = 'hist')  
+
+
+### PLOTS ### --------------------------------------------------
+
+# from wide to long dataframe needed for plotting
+log <- xgb$evaluation_log %>% gather(key = 'dataset', value = 'RMSE', -iter)
+
+# plot improvement 
+plot_rmse <- ggplot(data = log, aes(x = iter, y = RMSE, color = dataset)) +
+  geom_point() +
+  xlab('iteration') +
+  ggtitle('Return Mean Squared Error over iterations')
+plot_rmse
 
 # check importance plot
 importance <- xgb.importance(feature_names = colnames(matrix_train), model = xgb)
 xgb_importance <- xgb.plot.importance(importance_matrix = importance, top_n = 15)
+plot_xgb_importance <- xgb_importance %>%
+  mutate(Feature = fct_reorder(Feature, Importance)) %>%
+  ggplot(aes(x=Feature, y=Importance)) +
+  geom_bar(stat="identity", fill="#f68060", alpha=.6, width=.4) +
+  coord_flip() +
+  xlab("") +
+  theme_bw() +
+  ggtitle('Feature Importance Plot for XG-Boost')
+plot_xgb_importance
+
+
+# end timer
+toc()
