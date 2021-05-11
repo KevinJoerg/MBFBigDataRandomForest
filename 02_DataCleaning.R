@@ -224,11 +224,12 @@ for (i in num_variables) {
 }
 
 # Now only select the relevant variables
-variablesOfInterest <- c('DemRepRatio','StateDemRepRatio', 'is_new', 'mileage', 'price', 'city_fuel_economy', 'horsepower', 'length', 'maximum_seating', 'body_type', 'make_name', 'state', 'county')
+variablesOfInterest <- c('DemRepRatio','StateDemRepRatio', 'is_new', 'mileage', 'price', 'city_fuel_economy',
+                         'horsepower', 'length', 'maximum_seating', 'body_type', 'make_name', 'state', 'county')
 carListingsClean <- carListingsClean[variablesOfInterest]
 
 # New df is small enough to run in RAM
-carListings.df <- as.data.frame(carListingsClean)
+carListings.df <- data.frame(carListingsClean)
 
 # Find percentage of cases of the factor variables
 pct <- lapply(carListings.df, function(x) table(x) / length(x))
@@ -240,7 +241,7 @@ addFactorOther <- function(x){
 }
 
 # Apply the function above to all columns
-carListings.df <- as.data.frame(lapply(carListings.df, addFactorOther))
+carListings.df <- data.frame(lapply(carListings.df, addFactorOther))
 
 # For each factor column, summarize cases that occur with less than 1% frequency as Other
 for (column in colnames(carListings.df)){
