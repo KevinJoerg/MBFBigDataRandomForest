@@ -12,10 +12,12 @@
 /ffdf/*
 /ffdfClean/*
 /ffdfClean2/*
-/ffdf_Tim/*
 
 # Exclude backup folders
 /backup
 
+# Exclude cache files from XGBoost
+**.cache
+**.page
 
 
