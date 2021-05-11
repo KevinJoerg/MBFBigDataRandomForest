@@ -11,6 +11,9 @@ library(lobstr)
 
 ### SETUP ### ------------------------------------------------
 
+# start the timer
+tic()
+
 rm(list = ls())
 gc()
 
@@ -254,5 +257,6 @@ update(carListingsClean, carListings.df)
 system("mkdir ffdfClean2")
 save.ffdf(carListingsClean, dir = './ffdfClean2', overwrite = TRUE)
 
-
+# end the timer
+toc()
 

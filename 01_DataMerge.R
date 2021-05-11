@@ -22,6 +22,8 @@ rm(list = ls())
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 getwd()
 
+# start the timer
+tic()
 
 # Prepare for loading with ff, read in Used Car CSV ****************************
 
@@ -132,7 +134,8 @@ carListingsClean <- carListings[!is.na(carListings$StateDemRepRatio)]
 system("mkdir ffdfClean")
 save.ffdf(carListingsClean, dir = './ffdfClean', overwrite = TRUE)
 
-
+# end the timer
+toc()
 
 ## Analysis ********************************************************************
 # 

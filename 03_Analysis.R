@@ -21,11 +21,8 @@ rm(list = ls())
 
 ### SETUP ### ------------------------------------------------
 
-# # Alternative approach to read in data
-# df <- fread('./data/used_cars_data.csv', verbose = FALSE)
-# pryr::object_size(df)
-# str(df)
-
+# start the timer
+tic()
 
 # set wd to where the source file is
 # make sure you have the datafiles in a /data/ folder
@@ -237,6 +234,8 @@ leaflet() %>%
   #           opacity = 1)
 
 
+# end the timer
+toc()
 
 
 
