@@ -45,52 +45,73 @@ setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 # Load the cleaned data
 load.ffdf(dir='./ffdfClean2')
 
-# convert to df
-data <- data.frame(carListingsClean)
 
 ### DATA CLEANING ### ----------------------------------------------
 
-# smaller dataset for trial and omit NA rows, that will else produce errors in the algorithm
-data <- na.omit(data)
+# delete columns we don't need for the regression
+carListingsClean$county <- NULL
+carListingsClean$state <- NULL
+carListingsClean$StateDemRepRatio <- NULL
 
-# transform
-data$is_new = as.factor(data$is_new)   
-
-data <- data[1:10000,]
+# omit the NAs for XGBoost
+carListingsClean <- na.omit(carListingsClean)
 
 
 ### SPLIT TRAINING AND TESTING DATASET ### ----------------------------------------------
+# to clean and modify the data we can load it into RAM as it is small enough
+# for XGBoost we will do the computation out of memory
 
 # set the seed to make your partition reproducible
 set.seed(123)
-smp_size <- floor(0.75 * nrow(data)) ## 75% of the sample size
-train_ind <- base::sample(seq_len(nrow(data)), size = smp_size)
-
+smp_size <- floor(0.75 * nrow(carListingsClean)) ## 75% of the sample size
+train_ind <- base::sample(seq_len(nrow(carListingsClean)), size = smp_size)
 
 # Split the data into train and test
-train <- data[train_ind,]
-test <- data[-train_ind, ]
+train <- carListingsClean[train_ind,]
+test <- carListingsClean[-train_ind, ]
+
+# convert to factor
+train$is_new <- as.factor(train$is_new)
+test$is_new <- as.factor(test$is_new)
 
 # define training label = dependent variable
 train_target = as.matrix((train[,'DemRepRatio']))
 test_target = as.matrix((test[,'DemRepRatio']))
 
 # convert categorical factor into dummy variables using one-hot encoding
-sparse_matrix_train <- sparse.model.matrix((DemRepRatio)~.-1, data = train)
-sparse_matrix_test <- sparse.model.matrix((DemRepRatio)~.-1, data = test)
+matrix_train <- model.matrix(~.-1, data = train)
+matrix_test <- model.matrix(~.-1, data = test)
 
-# check the dimnames crated by the one-hot encoding
-sparse_matrix_train@Dimnames[[2]]
-
-# Create a dense matrix for XGBoost
-dtrain <- xgb.DMatrix(data = sparse_matrix_train, label = train_target)
-dtest <- xgb.DMatrix(data = sparse_matrix_test, label=test_target)
+# save the new sparse matrix as csv
+fwrite(matrix_train, file = './data/train.csv', row.names = FALSE)
+fwrite(matrix_test, file = './data/test.csv', row.names = FALSE)
 
 
+### XGBOOST ### ----------------------------------------------
 
-# write a libsvm
-write.libsvm <- function(data, target, filename="out.dat") {
-  out <- file(filename)
-  writeLines(paste(target, apply(data, 1, function( X ) paste(apply(cbind(which(X!=0), X[which(X!=0)]), 1, paste, collapse=":"), collapse=" "))), out)
-  close( out )
-}
+# load data as out-of-memory for XGBoost
+# the #dtrain.cache specifies that it should be loaded out of memory
+dtrain = xgb.DMatrix(data = './data/train.csv?format=csv&label_column=0#dtrain.cache') 
+dtest = xgb.DMatrix(data = './data/test.csv?format=csv&label_column=0#dtest.cache') 
+
+# set the parameter
+params_xgb <- list(booster = 'dart', 
+                  objective = "reg:squarederror",
+                  max_depth = 5,
+                  eta= 0.1) 
+
+# train xgboost
+xgb <- xgb.train(data = dtrain, 
+                 params = params_xgb,
+                 nrounds = 10, 
+                 maximize = F, 
+                 eval_metric = "rmse", 
+                 tree_method = 'hist',
+                 print_every_n = 1, 
+                 watchlist = list(train = dtrain, test = dtest), 
+                 early_stopping_rounds = 10,
+                 verbose = 2)  
+
+# check importance plot
+importance <- xgb.importance(feature_names = colnames(matrix_train), model = xgb)
+xgb_importance <- xgb.plot.importance(importance_matrix = importance, top_n = 15)
