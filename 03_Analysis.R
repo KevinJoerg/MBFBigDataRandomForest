@@ -16,6 +16,8 @@ library(ggplot2)
 library(corrgram)
 library(tictoc)
 library(gputools)
+library(Metrics)
+library(mapview)
 
 rm(list = ls())
 
@@ -59,27 +61,42 @@ for (column in colnames(carListings.df)){
 }
 
 # Split into two df, one with known county dem rep ratio, one without
-carListings.df.withCount <- carListings.df[!is.na(carListings.df$DemRepRatio), ]
+carListings.df.withCounty <- carListings.df[!is.na(carListings.df$DemRepRatio), ]
 carListings.df.forecast <- carListings.df[is.na(carListings.df$DemRepRatio), ]
 
 # For OLS, drop state and county
-countyTrain <- carListings.df.withCount$county
+countyTrain <- carListings.df.withCounty$county
 countyForecast <- carListings.df.forecast$county
-stateTrain <- carListings.df.withCount$state
+stateTrain <- carListings.df.withCounty$state
 stateForecast <- carListings.df.forecast$state
-carListings.df.withCount$state <- NULL
-carListings.df.withCount$county <- NULL
+carListings.df.withCounty$state <- NULL
+carListings.df.withCounty$county <- NULL
 carListings.df.forecast$state <- NULL
 carListings.df.forecast$county <- NULL
 
+# Now split the data with observations into train and test
+
+# set the seed to make your partition reproducible
+set.seed(123)
+smp_size <- floor(0.75 * nrow(carListings.df.withCounty)) ## 75% of the sample size
+train_ind <- base::sample(seq_len(nrow(carListings.df.withCounty)), size = smp_size)
+
+# Split the data into train and test
+carListings.df.withCounty.train <- carListings.df.withCounty[train_ind,]
+carListings.df.withCounty.test <- carListings.df.withCounty[-train_ind, ]
+
+countyTrain.train <- countyTrain[train_ind]
+stateTrain.train <- stateTrain[train_ind]
+countyTrain.test <- countyTrain[-train_ind]
+stateTrain.test <- stateTrain[-train_ind]
 
 # Regression
 f <- 'DemRepRatio ~ .'
 tic()
-olsgpu <- gpuLm(f, carListings.df.withCount)
+olsgpu <- gpuLm(f, carListings.df.withCounty.train)
 toc()
 tic()
-ols <- lm(f, carListings.df.withCount)
+ols <- lm(f, carListings.df.withCounty.train)
 toc()
 
 summary(olsgpu)
@@ -112,8 +129,8 @@ ols_vif_tol(ols)
 ols_correlations(ols)
 
 # Test forecast on existing data ***********************************************
-forecast_evaluate <- predict(ols, carListings.df.withCount)
-forecast_evaluate <- as.data.frame(cbind(cbind(as.character(stateTrain), as.character(countyTrain)), forecast_evaluate))
+forecast_evaluate <- predict(ols, carListings.df.withCounty.test)
+forecast_evaluate <- as.data.frame(cbind(cbind(as.character(stateTrain.test), as.character(countyTrain.test)), forecast_evaluate))
 
 # Scale back
 mu <- attr(carListings.df$DemRepRatio,"scaled:center")
@@ -150,6 +167,12 @@ forecast_evaluate$DemRepRatio <- (as.numeric(forecast_evaluate$DemRepRatio)*std)
 olsTest <- lm('DemRepRatio ~ forecast', data = forecast_evaluate)
 summary(olsTest)
 
+# Evaluate directly
+OLS_R2 <- cor(forecast_evaluate$DemRepRatio, forecast_evaluate$forecast) ^ 2
+
+# RMSE
+OLS_RMSE <- rmse(forecast_evaluate$DemRepRatio, forecast_evaluate$forecast)
+
 # Forecast *********************************************************************
 forecast <- predict(ols, carListings.df.forecast)
 forecast <- as.data.frame(cbind(cbind(as.character(stateForecast), as.character(countyForecast)), forecast))
@@ -185,13 +208,17 @@ names(forecast) <- c('state', 'county', 'forecast')
 library(raster)
 library(leaflet)
 
+# Create df of all existing county dem rep ratios
+as.data.frame(cbind(cbind(as.character(stateTrain), as.character(countyTrain)), carListings.df.withCounty$DemRepRatio))
+availableDemRepRatios <- unique(carListings.df.withCounty[, c('state', 'county', 'DemRepRatio')])
+
 # Get USA polygon data
 USA <- getData("GADM", country = "usa", level = 2)
 USA@data$NAME_0 <- as.character(lapply(USA@data$NAME_0, tolower))
 USA@data$NAME_1 <- as.character(lapply(USA@data$NAME_1, tolower))
 USA@data$NAME_2 <- as.character(lapply(USA@data$NAME_2, tolower))
 
-temp <- merge(USA, forecast_evaluate,
+temp <- merge(USA, availableDemRepRatios,
               by.x = c("NAME_1", "NAME_2"), by.y = c("state", "county"),
               all.x = TRUE)
 
@@ -200,7 +227,7 @@ pal.quantile <- colorQuantile("RdYlBu",
                               domain =  temp$DemRepRatio, reverse = FALSE, n = 11)
 mypal <- pal.quantile(temp$DemRepRatio)
 
-leaflet() %>% 
+m <- leaflet() %>% 
   addProviderTiles("OpenStreetMap.Mapnik") %>%
   setView(lat = 39.8283, lng = -98.5795, zoom = 4) %>%
   addPolygons(data = USA, stroke = FALSE, smoothFactor = 0.2, fillOpacity = 0.7,
@@ -210,6 +237,8 @@ leaflet() %>%
 # addLegend(position = "bottomleft", pal = pal.quantile, values = temp$DemRepRatio,
 #           title = "Value",
 #           opacity = 1)
+
+mapshot(m, 'plots/MapAvailableCountyVotingOutome.png')
 
 # Now add a map with forecasts
 names(forecast) <- c('state', 'county', 'DemRepRatio')
