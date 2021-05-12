@@ -16,6 +16,8 @@ library(ggplot2)
 library(corrgram)
 library(tictoc)
 library(gputools)
+library(Metrics)
+library(mapview)
 
 rm(list = ls())
 
@@ -36,18 +38,18 @@ load.ffdf(dir='./ffdfClean2')
 
 ### Some analysis ### -----------------------------------------
 
-num_variables = c('city_fuel_economy', 'horsepower', 'length', 'maximum_seating', 'mileage', 'price', 'DemRepRatio')
+num_variables = c('city_fuel_economy', 'horsepower', 'length', 'maximum_seating', 'mileage', 'price', 'DemRepRatio', 'StateDemRepRatio')
 
 carListings.onlynum <- data.frame(carListingsClean) %>% select(num_variables)
-names(carListings.onlynum) <- c('Fuel Economy', 'HP', 'Length', 'Seats', 'Mileage', 'Price', 'Dem Ratio')
+names(carListings.onlynum) <- c('Fuel Economy', 'HP', 'Length', 'Seats', 'Mileage', 'Price', 'Dem-Rep County', 'Dem-Rep State')
 
 
 # correlation matrix
 cor(na.omit(data.frame(carListings.onlynum)))
 
-# Create a correlogram
-corrgram(carListings.onlynum, lower.panel=panel.shade,
-         upper.panel=panel.pie, main="Correlation numerical variables")
+# Create a correlogram (Slow)
+# corrgram(carListings.onlynum, lower.panel=panel.shade,
+#         upper.panel=panel.pie, main="Correlation numerical variables")
 
 # Scale variables for regression
 carListings.df <- as.data.frame(carListingsClean)
@@ -58,13 +60,43 @@ for (column in colnames(carListings.df)){
   }
 }
 
+# Split into two df, one with known county dem rep ratio, one without
+carListings.df.withCounty <- carListings.df[!is.na(carListings.df$DemRepRatio), ]
+carListings.df.forecast <- carListings.df[is.na(carListings.df$DemRepRatio), ]
+
+# For OLS, drop state and county
+countyTrain <- carListings.df.withCounty$county
+countyForecast <- carListings.df.forecast$county
+stateTrain <- carListings.df.withCounty$state
+stateForecast <- carListings.df.forecast$state
+carListings.df.withCounty$state <- NULL
+carListings.df.withCounty$county <- NULL
+carListings.df.forecast$state <- NULL
+carListings.df.forecast$county <- NULL
+
+# Now split the data with observations into train and test
+
+# set the seed to make your partition reproducible
+set.seed(123)
+smp_size <- floor(0.75 * nrow(carListings.df.withCounty)) ## 75% of the sample size
+train_ind <- base::sample(seq_len(nrow(carListings.df.withCounty)), size = smp_size)
+
+# Split the data into train and test
+carListings.df.withCounty.train <- carListings.df.withCounty[train_ind,]
+carListings.df.withCounty.test <- carListings.df.withCounty[-train_ind, ]
+
+countyTrain.train <- countyTrain[train_ind]
+stateTrain.train <- stateTrain[train_ind]
+countyTrain.test <- countyTrain[-train_ind]
+stateTrain.test <- stateTrain[-train_ind]
+
 # Regression
 f <- 'DemRepRatio ~ .'
 tic()
-olsgpu <- gpuLm(f, carListings.df)
+olsgpu <- gpuLm(f, carListings.df.withCounty.train)
 toc()
 tic()
-ols <- lm(f, carListings.df)
+ols <- lm(f, carListings.df.withCounty.train)
 toc()
 
 summary(olsgpu)
@@ -94,187 +126,147 @@ ols_vif_tol(ols)
 # Relative importance of independent variables in determining Y. How much
 # each variable uniquely contributes to R2 over and above that which can be
 # accounted for by the other predictors.
-ols_correlations(regr)
+ols_correlations(ols)
+
+# Test forecast on existing data ***********************************************
+forecast_evaluate <- predict(ols, carListings.df.withCounty.test)
+forecast_evaluate <- as.data.frame(cbind(cbind(as.character(stateTrain.test), as.character(countyTrain.test)), forecast_evaluate))
+
+# Scale back
+mu <- attr(carListings.df$DemRepRatio,"scaled:center")
+std <- attr(carListings.df$DemRepRatio,"scaled:scale")
+forecast_evaluate$forecast <- (as.numeric(forecast_evaluate$forecast)*std) + mu
+forecast_evaluate <- na.omit(forecast_evaluate)
+
+# Count number of car listings per state
+forecast_evaluate.count <- forecast_evaluate %>%
+  group_by(V1, V2) %>%
+  summarise(forecast = length(forecast_evaluate)) %>%
+  ungroup
+
+# Average value as forecast
+forecast_evaluate <- forecast_evaluate %>%
+  group_by(V1, V2) %>%
+  summarise(forecast = mean(forecast, na.rm = TRUE)) %>%
+  ungroup
+
+# Only keep forecasts that are based on at least 100 observations
+forecast_evaluate <- forecast_evaluate[forecast_evaluate.count$forecast > 100, ]
+names(forecast_evaluate) <- c('state', 'county', 'forecast')
+
+# Add true values
+forecast_evaluate <- merge(forecast_evaluate, carListings.df[,c('state', 'county', 'DemRepRatio')],
+                           by.x = c('state', 'county'), by.y = c("state", "county"),
+                           all.x = TRUE)
+forecast_evaluate <- unique(forecast_evaluate)
+
+# Scale back
+forecast_evaluate$DemRepRatio <- (as.numeric(forecast_evaluate$DemRepRatio)*std) + mu
+
+# Evaluate with OLS
+olsTest <- lm('DemRepRatio ~ forecast', data = forecast_evaluate)
+summary(olsTest)
+
+# Evaluate directly
+OLS_R2 <- cor(forecast_evaluate$DemRepRatio, forecast_evaluate$forecast) ^ 2
+
+# RMSE
+OLS_RMSE <- rmse(forecast_evaluate$DemRepRatio, forecast_evaluate$forecast)
+
+# Forecast *********************************************************************
+forecast <- predict(ols, carListings.df.forecast)
+forecast <- as.data.frame(cbind(cbind(as.character(stateForecast), as.character(countyForecast)), forecast))
+
+# Scale back
+mu <- attr(carListings.df$DemRepRatio,"scaled:center")
+std <- attr(carListings.df$DemRepRatio,"scaled:scale")
+forecast$forecast <- (as.numeric(forecast$forecast)*std) + mu
+forecast <- na.omit(forecast)
+
+# Count number of car listings per state
+forecast.count <- forecast %>%
+  group_by(V1, V2) %>%
+  summarise(forecast = length(forecast)) %>%
+  ungroup
+
+# Average value as forecast
+forecast <- forecast %>%
+  group_by(V1, V2) %>%
+  summarise(forecast = mean(forecast, na.rm = TRUE)) %>%
+  ungroup
+
+# Only keep forecasts that are based on at least 100 observations
+forecast <- forecast[forecast.count$forecast > 100, ]
+
+# Scale with coefficients for optimal forecast
+forecast$forecast <- olsTest$coefficients[1] + olsTest$coefficients[2] * forecast$forecast
+forecast <- as.data.frame(forecast)
+names(forecast) <- c('state', 'county', 'forecast')
+
+# Visualize ********************************************************************
+
+library(raster)
+library(leaflet)
+
+# Create df of all existing county dem rep ratios
+as.data.frame(cbind(cbind(as.character(stateTrain), as.character(countyTrain)), carListings.df.withCounty$DemRepRatio))
+availableDemRepRatios <- unique(carListings.df.withCounty[, c('state', 'county', 'DemRepRatio')])
+
+# Get USA polygon data
+USA <- getData("GADM", country = "usa", level = 2)
+USA@data$NAME_0 <- as.character(lapply(USA@data$NAME_0, tolower))
+USA@data$NAME_1 <- as.character(lapply(USA@data$NAME_1, tolower))
+USA@data$NAME_2 <- as.character(lapply(USA@data$NAME_2, tolower))
+
+temp <- merge(USA, availableDemRepRatios,
+              by.x = c("NAME_1", "NAME_2"), by.y = c("state", "county"),
+              all.x = TRUE)
+
+# Create a color range for the markers
+pal.quantile <- colorQuantile("RdYlBu",
+                              domain =  temp$DemRepRatio, reverse = FALSE, n = 11)
+mypal <- pal.quantile(temp$DemRepRatio)
+
+m <- leaflet() %>% 
+  addProviderTiles("OpenStreetMap.Mapnik") %>%
+  setView(lat = 39.8283, lng = -98.5795, zoom = 4) %>%
+  addPolygons(data = USA, stroke = FALSE, smoothFactor = 0.2, fillOpacity = 0.7,
+              fillColor = mypal,
+              popup = paste("Region: ", temp$NAME_2, "<br>",
+                            "Value: ", round(temp$DemRepRatio,3), "<br>")) #%>%
+# addLegend(position = "bottomleft", pal = pal.quantile, values = temp$DemRepRatio,
+#           title = "Value",
+#           opacity = 1)
+
+mapshot(m, 'plots/MapAvailableCountyVotingOutome.png')
+
+# Now add a map with forecasts
+names(forecast) <- c('state', 'county', 'DemRepRatio')
+DemRepRatioAllCounties <- rbind(forecast_evaluate[,c('state', 'county', 'DemRepRatio')], forecast)
+
+
+temp <- merge(USA, DemRepRatioAllCounties,
+              by.x = c("NAME_1", "NAME_2"), by.y = c("state", "county"),
+              all.x = TRUE)
+
+# Create a color range for the markers
+pal.quantile <- colorQuantile("RdYlBu",
+                              domain =  temp$DemRepRatio, reverse = FALSE, n = 11)
+mypal <- pal.quantile(temp$DemRepRatio)
+
+leaflet() %>% 
+  addProviderTiles("OpenStreetMap.Mapnik") %>%
+  setView(lat = 39.8283, lng = -98.5795, zoom = 4) %>%
+  addPolygons(data = USA, stroke = FALSE, smoothFactor = 0.2, fillOpacity = 0.7,
+              fillColor = mypal,
+              popup = paste("Region: ", temp$NAME_2, "<br>",
+                            "Value: ", round(temp$DemRepRatio,3), "<br>"))# %>%
+# addLegend(position = "topleft", pal = pal.quantile, values = temp$DemRepRatio,
+#           title = "Value",
+#           opacity = 1)
 
 
 
-# Delete below
-# ### Regression ### -----------------------------------------
-# library(gputools)
-# library(tictoc)
-# gpuLm.defaultTol(useSingle = FALSE)
-# 
-# carListings.df <- as.data.frame(carListingsClean)
-# 
-# variablesOfInterest <- c('DemRepRatio', 'is_new', 'mileage', 'price', 'city_fuel_economy', 'horsepower', 'length', 'maximum_seating', 'body_type', 'make_name', 'state')
-# 
-# carListings.analyze <- carListings.df %>% select(variablesOfInterest)
-# 
-# pct <- lapply(carListings.analyze, function(x) table(x) / length(x))
-# 
-# addFactorOther <- function(x){
-#   if(is.factor(x)) return(factor(x, levels=c(levels(x), "Other")))
-#   return(x)
-# }
-# 
-# carListings.analyze <- as.data.frame(lapply(carListings.analyze, addFactorOther))
-# 
-# for (column in colnames(carListings.analyze)){
-#   if (is.factor(carListings.analyze[, column])){
-#     
-#   }
-#   else{
-#     carListings.analyze[,column] <- scale(carListings.analyze[,column])
-#   }
-#   
-# }
-# 
-# f <- 'DemRepRatio ~ .'
-# tic()
-# olsgpu <- gpuLm(f, carListings.analyze)
-# toc()
-# tic()
-# ols <- lm(f, carListings.analyze)
-# toc()
-# 
-# summary(olsgpu)
-# summary(ols)
-# 
-# 
-# 
-# 
-# 
-# 
-# pct <- lapply(carListings.analyze, function(x) table(x) / length(x))
-# 
-# addFactorOther <- function(x){
-#   if(is.factor(x)) return(factor(x, levels=c(levels(x), "Other")))
-#   return(x)
-# }
-# 
-# carListings.analyze <- as.data.frame(lapply(carListings.analyze, addFactorOther))
-# 
-# for (column in colnames(carListings.analyze)){
-#   if (is.factor(carListings.analyze[, column])){
-#     drop <- pct[[column]]
-#     drop <- names(drop[drop < 0.005])
-#     carListings.analyze[is.element(carListings.analyze[,column], drop), column] <- "Other"
-#   }
-#   else{
-#     carListings.analyze[,column] <- scale(carListings.analyze[,column])
-#   }
-#   
-# }
-# 
-# 
-# # carListings.analyze$engine_type <- NULL
-# # carListings.analyze$engine_cylinders <- NULL
-# # carListings.analyze$state <- NULL
-# # carListings.analyze$fuel_type <- NULL
-# # carListings.analyze$fuel_tank_volume <- NULL
-# # carListings.analyze$longitude <- NULL
-# # carListings.analyze$latitude <- NULL
-# # carListings.analyze$listed_date <- NULL
-# # carListings.analyze$maximum_seating <- NULL
-# # carListings.analyze$month <- NULL
-# # carListings.analyze$year <- NULL
-# # carListings.analyze$city_fuel_economy <- NULL
-# # carListings.analyze$highway_fuel_economy <- NULL
-# # carListings.analyze$wheelbase <- NULL
-# # carListings.analyze$front_legroom <- NULL
-# # carListings.analyze$back_legroom <- NULL
-# # carListings.analyze$height <- NULL
-# # carListings.analyze$width <- NULL
-# 
-# # Drop some variables
-# carListings.analyze$city <- NULL
-# carListings.analyze$county <- NULL
-# 
-# carListings.analyze <- droplevels(carListings.analyze)
-# 
-# # rm(carListingsClean, carListings.df, pct)
-# # gc()
-# 
-# 
-# f <- 'DemRepRatio ~ .'
-# tic()
-# olsgpu <- gpuLm(f, carListings.analyze)
-# toc()
-# 
-# tic()
-# ols <- lm(f, carListings.analyze)
-# toc()
-# 
-# summary(olsgpu)
-# summary(ols)
-# 
-# 
-# # Check for multicolinearity
-# alias(ols)
-# alias(olsgpu)
-# 
-# library(biglm)
-# library(bigmemory)
-# library(biganalytics)
-# library(bigmemoryExtras)
-# #if (!requireNamespace("BiocManager", quietly = TRUE))
-# #  install.packages("BiocManager")
-# # BiocManager::install("gputools")
-# # install.packages("gputools")
-# 
-# # Change to bigmemory type
-# carListings.df <- as.data.frame(carListingsClean)
-# carListings <- as.big.matrix(carListings.df, backingfile = 'carListings.bin', descriptorfile = 'carListings.bin.desc')
-# colnames(carListings)
-# 
-# # Variables that work alone
-# # back_legroom + body_type + city_fuel_economy + daysonmarket + engine_cylinders + engine_displacement + 
-# # franchise_dealer + front_legroom + fuel_tank_volume + fuel_type + height + highway_fuel_economy + horsepower + is_new + make_name + maximum_seating
-# # listing_color + mileage + price + savings_amount + torque + transmission + wheel_system + wheelbase + state + rpm
-# # factors c('body_type', 'engine_cylinders', 'fuel_type', 'listing_color', 'make_name', 'transmission', 'wheel_system', 'state')
-# # Variables that are super slow
-# # city, county
-# 
-# f <- 'DemRepRatio ~ back_legroom + body_type + city_fuel_economy + daysonmarket + engine_cylinders + engine_displacement + franchise_dealer + front_legroom + fuel_tank_volume + fuel_type + height + highway_fuel_economy + horsepower + is_new + make_name + maximum_seating + listing_color + mileage + price + savings_amount + torque + transmission + wheel_system + wheelbase + state + rpm'
-# f <- 'DemRepRatio ~ back_legroom + body_type + city_fuel_economy + daysonmarket + engine_cylinders + engine_displacement + franchise_dealer'
-# 
-# a <- biglm.big.matrix('DemRepRatio ~ body_type', data = carListings, fc = c('body_type'))
-# summary(a)
-# 
-# # carListings.df <- carListings.df %>% mutate_if(is.factor, as.character) 
-# 
-# c <- as.matrix(carListings.df)
-# carListings <- as.big.matrix(carListings.df, backingfile = 'carListings.bin', descriptorfile = 'carListings.bin.desc')
-# carListings <- filebacked.big.matrix()
-# b <- BigMatrixFactor(c, backingfile = 'carListingsFactor.bin')
-# # rm(carListingsClean, carListings.df)
-# gc()
-# colnames(carListings)
-# carListings[, 3]
-# 
-# a <- biglm.big.matrix('DemRepRatio ~ back_legroom + body_type', data = carListings)
-# summary(a)
-# 
-# # Remove rows with NA. Not needed for normal lm
-# carListings.short <- as.ffdf(na.omit(as.data.frame(carListingsClean)))
-# 
-# colnames(carListingsClean)
-# 
-# # Try a regression with many variables
-# summary(bigglm.ffdf(DemRepRatio ~ back_legroom + body_type + city, data = carListingsClean))
-# 
-# lm(DemRepRatio ~ ., data = carListings.short)
-# 
-# ?bigglm.ffdf
-# 
-# ols <- bigglm(DemRepRatio ~ price + back_legroom + body_type + city, data = carListingsClean[], chunksize = 100000)
-# 
-# bigglm.ffdf(back_legroom ~ body_type, data = carListings.short)
-# 
-# data(trees)
-# x <- as.ffdf(trees)
-# a <- bigglm(log(Volume)~log(Girth)+log(Height), 
-#             data=x[], chunksize=10, sandwich=TRUE)
 
 
 

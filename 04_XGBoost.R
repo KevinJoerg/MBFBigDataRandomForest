@@ -15,6 +15,9 @@ and since XGBoost is essentially an ensemble algorithm comprised of decision tre
 it does not require normalization for the inputs either.
 "
 
+# first install libomp by using the termin and the following command: 
+# brew install libomp
+
 library(libomp)
 library(xgboost)
 library(Matrix)
@@ -45,46 +48,46 @@ setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 # Load the cleaned data
 load.ffdf(dir='./ffdfClean2')
 
-# convert to df
-data <- data.frame(carListingsClean)
 
 ### DATA CLEANING ### ----------------------------------------------
 
-# smaller dataset for trial and omit NA rows, that will else produce errors in the algorithm
-data <- na.omit(data)
+carListingsClean <- data.frame(carListingsClean[1:1000,])
 
-# transform
-data$is_new = as.factor(data$is_new)   
+# delete columns we don't need for the regression
+carListingsClean$county <- NULL
+carListingsClean$state <- NULL
+carListingsClean$StateDemRepRatio <- NULL
 
-# data <- data[1:10000,]
+# omit the NAs for XGBoost
+carListingsClean <- na.omit(carListingsClean)
 
 
 ### SPLIT TRAINING AND TESTING DATASET ### ----------------------------------------------
 
 # set the seed to make your partition reproducible
 set.seed(123)
-smp_size <- floor(0.75 * nrow(data)) ## 75% of the sample size
-train_ind <- base::sample(seq_len(nrow(data)), size = smp_size)
-
+smp_size <- floor(0.75 * nrow(carListingsClean)) ## 75% of the sample size
+train_ind <- base::sample(seq_len(nrow(carListingsClean)), size = smp_size)
 
 # Split the data into train and test
-train <- data[train_ind,]
-test <- data[-train_ind, ]
+train <- carListingsClean[train_ind,]
+test <- carListingsClean[-train_ind, ]
+
+# convert to factor
+train$is_new <- as.factor(train$is_new)
+test$is_new <- as.factor(test$is_new)
 
 # define training label = dependent variable
 train_target = as.matrix((train[,'DemRepRatio']))
 test_target = as.matrix((test[,'DemRepRatio']))
 
 # convert categorical factor into dummy variables using one-hot encoding
-sparse_matrix_train <- sparse.model.matrix((DemRepRatio)~.-1, data = train)
-sparse_matrix_test <- sparse.model.matrix((DemRepRatio)~.-1, data = test)
-
-# check the dimnames crated by the one-hot encoding
-sparse_matrix_train@Dimnames[[2]]
+sparse_matrix_train <- model.matrix((DemRepRatio)~.-1, data = train)
+sparse_matrix_test <- model.matrix((DemRepRatio)~.-1, data = test)
 
 # Create a dense matrix for XGBoost
 dtrain <- xgb.DMatrix(data = sparse_matrix_train, label = train_target)
-dtest <- xgb.DMatrix(data = sparse_matrix_test, label=test_target)
+dtest <- xgb.DMatrix(data = sparse_matrix_test, label = test_target)
 
 rm(data, train_ind, carListingsClean)
 gc()
@@ -94,19 +97,8 @@ gc()
 
 set.seed(123)
 
-# make a list of the optimal parameters, which we can aggregate later
-params.list <- list()
-
-# take a random sample of 10% of the original dataset for hyperparameter tuning
-# we do this to avoid memory issues with huge grid sizes and limited computing power
-train_subset = sample_n(train, 0.01*nrow(train))
-
-# convert characters to factors
-fact_col <- colnames(train_subset)[sapply(train_subset,is.character)]
-for(i in fact_col) set(train_subset,j=i,value = factor(train_subset[[i]]))
-
 # create tasks for learner
-traintask <- makeRegrTask(data = data.frame(train_subset), target = 'DemRepRatio')
+traintask <- makeRegrTask(data = data.frame(train), target = 'DemRepRatio')
 
 # create dummy features, as classif.xgboost does not support factors
 traintask <- createDummyFeatures(obj = traintask)
@@ -138,7 +130,7 @@ rdesc <- makeResampleDesc("CV",stratify = F, iters=5L)
 
 # search strategy
 # instead of a grid search we use a random search strategy to find the best parameters. 
-ctrl <- makeTuneControlRandom(maxit = 10L) #maxit is the number of iterations for random search
+ctrl <- makeTuneControlRandom(maxit = 100L) # maxit is the number of iterations for random search
 
 # set parallel backend
 parallelStartSocket(cpus = detectCores(), level = "mlr.tuneParams")
@@ -173,26 +165,6 @@ params_xgb <- list(booster = mytune$x$booster,
                    ) 
 
 
-# # test core methods
-# xgbcore.time = list()
-# cores = c(-1, 1, 16)
-# for (i in 1:length(cores)) {
-#   xgbcore.time[[i]] = system.time({
-#       xgbcv <- xgb.cv(params = params_xgb,
-#                     data = dtrain, 
-#                     nrounds = 10L, 
-#                     nfold = 5,
-#                     showsd = T, # whether to show standard deviation of cv
-#                     stratified = F, 
-#                     print_every_n = 1, 
-#                     n_jobs = cores[i],
-#                     early_stopping_rounds = 50, # stop if we don't see much improvement
-#                     maximize = F, # should the metric be maximized?
-#                     verbose = 2, 
-#                     tree_method = 'hist')
-#     })
-# }
-# xgbcore.time
 
 # # test tree-methods
 # # note that there exists also "gpu_hist" but this only runs on CUDA-enable GPUs by NVIDIA
@@ -215,72 +187,23 @@ params_xgb <- list(booster = mytune$x$booster,
 # }
 # xgbtree.time
 
+  
 # using cross-validation to find optimal nrounds parameter
 xgbcv <- xgb.cv(params = params_xgb,
-                data = dtrain, 
-                nrounds = 1000L, 
-                nfold = 5,
-                showsd = T, # whether to show standard deviation of cv
-                stratified = F, 
-                print_every_n = 1, 
-                early_stopping_rounds = 50, # stop if we don't see much improvement
-                maximize = F, # should the metric be maximized?
-                verbose = 2, 
-                tree_method = 'hist')
+              data = dtrain, 
+              nrounds = 1000L, 
+              nfold = 5,
+              showsd = T, # whether to show standard deviation of cv
+              stratified = F, 
+              print_every_n = 1, 
+              early_stopping_rounds = 50, # stop if we don't see much improvement
+              maximize = F, # should the metric be maximized?
+              verbose = 2, 
+              tree_method = 'hist')
 
 # Result of best iteration
 xgb_best_iteration <- xgbcv$best_iteration
 
-### MODEL 2: WITH CARET ###  -----------------------------
-# 
-# xgb_trcontrol = caret::trainControl(
-#   method = "cv",
-#   number = 2,  
-#   allowParallel = TRUE,
-#   verboseIter = TRUE,
-#   returnData = FALSE,
-#   search = 'random'
-# )
-# 
-# xgbGrid <- expand.grid(nrounds = c(100,200),  # this is n_estimators in the python code above
-#                        max_depth = c(10, 15, 20, 25),
-#                        colsample_bytree = seq(0.5, 0.9, length.out = 5),
-#                        ## The values below are default values in the sklearn-api. 
-#                        eta = 0.1,
-#                        gamma=0,
-#                        min_child_weight = 1,
-#                        subsample = 1
-# )
-# 
-# set.seed(0) 
-# 
-# 
-# xgb_model = caret::train(
-#   dtrain, as.double(train_target),  
-#   trControl = xgb_trcontrol,
-#   tuneGrid = xgbGrid,
-#   method = "xgbTree", 
-#   objective = "reg:squarederror"
-# )
-# 
-# 
-# library(doParallel)
-# cl <- makePSOCKcluster(5)
-# registerDoParallel(cl)
-# 
-# parallelStartSocket(cpus = detectCores())
-# parallelStop()
-# 
-# xgb_model2 = caret::train(
-#   dtrain, as.double(train_target),  
-#   trControl = xgb_trcontrol,
-#   tuneGrid = xgbGrid,
-#   method = "xgbTree", 
-#   objective = "reg:squarederror", 
-#   nthread = 16
-# )
-# 
-# stopCluster(cl)
 
 ### MODEL 3: RUN WITH OPTIMAL PARAMETERS ###  -----------------------------
 'Xgboost doesnt run multiple trees in parallel like you noted, you need predictions after each tree to update gradients.
@@ -289,7 +212,7 @@ Rather it does the parallelization WITHIN a single tree my using openMP to creat
 
 # training with optimized nrounds and params
 # best is to let out the num threads, as xgboost takes all by default
-xgb3 <- xgb.train(params = params_xgb, 
+xgb <- xgb.train(params = params_xgb, 
                   data = dtrain, 
                   nrounds = xgb_best_iteration, 
                   watchlist = list(test = dtest, train = dtrain), 
@@ -298,61 +221,11 @@ xgb3 <- xgb.train(params = params_xgb,
                   tree_method = 'hist') # this accelerates the process 
 
 
-
-### ALTERNATIVE APPROACH ###--------------------------------------------
-
-# # Create 10,000 rows with random hyperparameters
-# 
-# set.seed(20)
-# 
-# # Create empty lists
-# lowest_error_list = list()
-# parameters_list = list()
-# 
-# # create grid
-# for (iter in 1:10){
-#   param <- list(booster = "gbtree",
-#                 objective = "reg:squarederror",
-#                 max_depth = base::sample(3:10, 1),
-#                 eta = runif(1, .01, .3),
-#                 subsample = runif(1, .7, 1),
-#                 colsample_bytree = runif(1, .6, 1),
-#                 min_child_weight = base::sample(0:10, 1), 
-#                 tree_method = 'hist'
-#   )
-#   parameters <- as.data.frame(param)
-#   parameters_list[[iter]] <- parameters
-# }
-# 
-# # Create object that contains all randomly created hyperparameters
-# parameters_df = do.call(rbind, parameters_list)
-# 
-# # Use randomly created parameters to create 10,000 XGBoost-models
-# for (row in 1:nrow(parameters_df)){
-#   set.seed(20)
-#   mdcv <- xgb.train(data=dtrain,
-#                     booster = "gbtree",
-#                     objective = "reg:squarederror",
-#                     max_depth = parameters_df$max_depth[row],
-#                     eta = parameters_df$eta[row],
-#                     subsample = parameters_df$subsample[row],
-#                     colsample_bytree = parameters_df$colsample_bytree[row],
-#                     min_child_weight = parameters_df$min_child_weight[row],
-#                     nrounds= 300,
-#                     eval_metric = "error",
-#                     early_stopping_rounds= 50,
-#                     print_every_n = 10,
-#                     watchlist = list(train= dtrain, val= dtest)
-#   )
-#   lowest_error <- as.data.frame(1 - min(mdcv$evaluation_log$val_error))
-#   lowest_error_list[[row]] <- lowest_error
-# }
-
 ### TESTING THE MODEL ###--------------------------------------------
 
 # predict
-xgb_pred_train <- predict(xgb3, dtrain)
-xgb_pred_test <- predict(xgb3, dtest)
+xgb_pred_train <- predict(xgb, dtrain)
+xgb_pred_test <- predict(xgb, dtest)
 
 # metrics for train
 rmse_xgb_train <- sqrt(mean((xgb_pred_train - train_target)^2))
@@ -379,13 +252,23 @@ results_xgb
 
 # PLOTS --------------------------------------------------
 
+# from wide to long dataframe needed for plotting
+log <- xgb$evaluation_log %>% gather(key = 'dataset', value = 'RMSE', -iter)
+
+# plot RMSE improvement 
+plot_rmse <- ggplot(data = log, aes(x = iter, y = RMSE, color = dataset)) +
+  geom_point() +
+  xlab('iteration') +
+  ggtitle('Return Mean Squared Error over iterations')
+plot_rmse
+
 # plot an example tree of all
 xgb.plot.tree(feature_names = names(dtrain), 
-              model = xgb3, 
+              model = xgb, 
               trees = 1)
 
 # Plot importance
-importance <- xgb.importance(feature_names = colnames(sparse_matrix_train), model = xgb3)
+importance <- xgb.importance(feature_names = colnames(sparse_matrix_train), model = xgb)
 xgb_importance <- xgb.plot.importance(importance_matrix = importance, top_n = 15)
 plot_xgb_importance <- xgb_importance %>%
   mutate(Feature = fct_reorder(Feature, Importance)) %>%
@@ -419,47 +302,55 @@ plot_xgb <- ggplot(data = merged_df, aes(x = as.numeric(row.names(merged_df)))) 
   labs(x = 'Index', y = 'DemRepRatio')
 plot_xgb
 
+# create datafrome for plotting
+test_sparse <- model.matrix(~.-1, data = test)
+
 # Plot most Top 1 variable vs. actual 
-plot_v1 <- ggplot(data = data.frame(matrix_test)) +
+plot_v1 <- ggplot(data = data.frame(test_sparse)) +
   geom_point(aes(x = !!ensym(variable1), y = DemRepRatio)) +
   ggtitle(paste0('DemRepRatio vs. ', variable1))
 plot_v1
 
 # Plot most Top 2 variable vs. actual 
-plot_v2 <- ggplot(data = data.frame(matrix_test)) +
+plot_v2 <- ggplot(data = data.frame(test_sparse)) +
   geom_point(aes(x = !!ensym(variable2), y = DemRepRatio)) +
   ggtitle(paste0('DemRepRatio vs. ', variable2))
 plot_v2
 
 # Plot most Top 3 variable vs. actual 
-plot_v3 <- ggplot(data = data.frame(matrix_test)) +
+plot_v3 <- ggplot(data = data.frame(test_sparse)) +
   geom_point(aes(x = !!ensym(variable3), y = DemRepRatio)) +
   ggtitle(paste0('DemRepRatio vs. ', variable3))
 plot_v3
 
 
 # SAVE MODELS AND PLOTS -----------------------------
-# 
-# # save plot
-# ggsave('plot_xgb_v1.png', path = './Plots/', plot = plot_v1, device = 'png')
-# ggsave('plot_xgb_v2.png', path = './Plots/', plot = plot_v2, device = 'png')
-# ggsave('plot_xgb_v3.png', path = './Plots/', plot = plot_v3, device = 'png')
-# ggsave('plot_xgb.png', path = './Plots/', plot = plot_xgb, device = 'png')
-# ggsave('plot_xgb_importance.png', path = './Plots/', plot = plot_xgb_importance, device = 'png')
-# 
-# # save model to local file
-# xgb.save(xgb, "./Models/xgboost.model")
-# 
-# # save results
-# save(results_xgb,file="./Models/results_xgboost.RData")
-# 
-# # save errors
-# save(errors_xgb, file = "./Models/errors_xgb.RData")
-# 
-# # save parameters
-# save(params_xgb, file = "./Models/params_xgb.RData")
-# save(xgb_best_iteration, file = "./Models/xgb_best_iteration.RData")
-# 
-# 
+
+# make dir
+dir.create('./plots/')
+dir.create('./models/')
+
+# save plot
+ggsave('plot_rmse', path = './Plots/', plot = plot_rmse, device = 'png')
+ggsave('plot_xgb_v1.png', path = './Plots/', plot = plot_v1, device = 'png')
+ggsave('plot_xgb_v2.png', path = './Plots/', plot = plot_v2, device = 'png')
+ggsave('plot_xgb_v3.png', path = './Plots/', plot = plot_v3, device = 'png')
+ggsave('plot_xgb.png', path = './Plots/', plot = plot_xgb, device = 'png')
+ggsave('plot_xgb_importance.png', path = './Plots/', plot = plot_xgb_importance, device = 'png')
+
+# save model to local file
+xgb.save(xgb, "./Models/xgboost.model")
+
+# save results
+save(results_xgb,file="./Models/results_xgboost.RData")
+
+# save errors
+save(errors_xgb, file = "./Models/errors_xgb.RData")
+
+# save parameters
+save(params_xgb, file = "./Models/params_xgb.RData")
+save(xgb_best_iteration, file = "./Models/xgb_best_iteration.RData")
+
+
 
 toc()

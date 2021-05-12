@@ -11,7 +11,11 @@ library(lobstr)
 
 ### SETUP ### ------------------------------------------------
 
+# start the timer
+tic()
+
 rm(list = ls())
+gc()
 
 # set wd to where the source file is
 # make sure you have the datafiles in a /data/ folder
@@ -34,8 +38,9 @@ sorted <- rev(sort(count_nas))
 barplot(sorted, cex.names = 0.5, las = 2)
 title(main = '% NAs in used cars data')
 
-# drop all variables for which we have less than 80% observations
+# drop all variables for which we have less than 80% observations (just not DemRepRatio)
 omit <- names(which(sorted>=0.2))
+omit <- omit[omit != 'DemRepRatio']
 for (column in omit) {carListingsClean[[column]] <- NULL}
 rm(omit, column, count_nas, sorted)
 
@@ -95,7 +100,8 @@ colnames <- c(back_legroom = 'numeric',
               year = 'numeric', 
               state = 'factor', 
               county = 'character', # too many, can we break it down?
-              DemRepRatio = 'numeric'
+              DemRepRatio = 'numeric',
+              StateDemRepRatio = 'numeric'
 )
 
 
@@ -185,7 +191,7 @@ nrow(carListingsClean)
 # define variables which are numeric
 num_variables = c('back_legroom', 'city_fuel_economy', 'engine_displacement', 'front_legroom', 'fuel_tank_volume', 'height', 'highway_fuel_economy', 
                   'horsepower', 'length', 'maximum_seating', 'mileage', 'price', 'savings_amount', 'seller_rating', 'torque', 'wheelbase', 'width', 
-                  'year', 'DemRepRatio', 'rpm')
+                  'year', 'DemRepRatio', 'StateDemRepRatio', 'rpm')
 
 carListings.df <- data.frame(carListingsClean) %>% select(num_variables)
 
@@ -194,14 +200,14 @@ for (i in num_variables) {
   hist(carListings.df[[i]], main = paste0(i, ' Histogram'), xlab = i)
 }
 
-# filter outliers in savings_amount, prices, horsepower, and more
-carListingsClean <- subset.ffdf(carListingsClean, city_fuel_economy < 70, drop = TRUE)
-carListingsClean <- subset.ffdf(carListingsClean, highway_fuel_economy < 60, drop = TRUE)
-carListingsClean <- subset.ffdf(carListingsClean, horsepower < 600, drop = TRUE)
+# filter outliers in savings_amount, prices, horsepower, and more. Keep observations with NA
+carListingsClean <- subset.ffdf(carListingsClean, city_fuel_economy < 70 | is.na(city_fuel_economy), drop = TRUE)
+carListingsClean <- subset.ffdf(carListingsClean, highway_fuel_economy < 60 | is.na(highway_fuel_economy), drop = TRUE)
+carListingsClean <- subset.ffdf(carListingsClean, horsepower < 600 | is.na(horsepower), drop = TRUE)
 carListingsClean <- subset.ffdf(carListingsClean, price < 200000, drop = TRUE)
 carListingsClean <- subset.ffdf(carListingsClean, mileage < 300000, drop = TRUE)
-carListingsClean <- subset.ffdf(carListingsClean, rpm > 2000, drop = TRUE)
-carListingsClean <- subset.ffdf(carListingsClean, savings_amount < 2500, drop = TRUE)
+carListingsClean <- subset.ffdf(carListingsClean, rpm > 2000 | is.na(rpm), drop = TRUE)
+# carListingsClean <- subset.ffdf(carListingsClean, savings_amount < 2500, drop = TRUE) We don't care about this, is just advertising
 carListingsClean <- subset.ffdf(carListingsClean, year > 1900, drop = TRUE)
 
 # hist.ff only works with some??
@@ -217,12 +223,18 @@ for (i in num_variables) {
   hist(carListings.df[[i]], main = paste0(i, ' Histogram'), xlab = i)
 }
 
+
+### SELECT ONLY RELEVANT COLUMNS ### --------------------------------------------
+
 # Now only select the relevant variables
-variablesOfInterest <- c('DemRepRatio', 'is_new', 'mileage', 'price', 'city_fuel_economy', 'horsepower', 'length', 'maximum_seating', 'body_type', 'make_name', 'state')
+# we have first filtered for outliers, and now only consider the conceptually relevant variables
+# for example horsepower and rpm are correlated, thus we omit rpm
+variablesOfInterest <- c('DemRepRatio','StateDemRepRatio', 'is_new', 'mileage', 'price', 'city_fuel_economy',
+                         'horsepower', 'length', 'maximum_seating', 'body_type', 'make_name', 'state', 'county')
 carListingsClean <- carListingsClean[variablesOfInterest]
 
 # New df is small enough to run in RAM
-carListings.df <- as.data.frame(carListingsClean)
+carListings.df <- data.frame(carListingsClean)
 
 # Find percentage of cases of the factor variables
 pct <- lapply(carListings.df, function(x) table(x) / length(x))
@@ -234,11 +246,11 @@ addFactorOther <- function(x){
 }
 
 # Apply the function above to all columns
-carListings.df <- as.data.frame(lapply(carListings.df, addFactorOther))
+carListings.df <- data.frame(lapply(carListings.df, addFactorOther))
 
 # For each factor column, summarize cases that occur with less than 1% frequency as Other
 for (column in colnames(carListings.df)){
-  if (is.factor(carListings.df[, column])){
+  if (is.factor(carListings.df[, column]) & column != 'county'){
     drop <- pct[[column]]
     drop <- names(drop[drop < 0.01])
     carListings.df[is.element(carListings.df[,column], drop), column] <- "Other"
@@ -247,9 +259,12 @@ for (column in colnames(carListings.df)){
 
 update(carListingsClean, carListings.df)
 
+### SAVE ### --------------------------------------------
+
 # Save this new clean2 ffdf
 system("mkdir ffdfClean2")
 save.ffdf(carListingsClean, dir = './ffdfClean2', overwrite = TRUE)
 
-
+# end the timer
+toc()
 

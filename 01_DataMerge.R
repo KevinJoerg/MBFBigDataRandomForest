@@ -22,6 +22,8 @@ rm(list = ls())
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 getwd()
 
+# start the timer
+tic()
 
 # Prepare for loading with ff, read in Used Car CSV ****************************
 
@@ -51,8 +53,11 @@ load.ffdf(dir='./ffdf')
 head(carListings)
 
 # Load voting data
-votingdata.path <- 'data/PRESIDENT_precinct_general.csv'
-votingdata <- fread(votingdata.path)
+votingdata.counties.path <- 'data/PRESIDENT_precinct_general.csv'
+votingdata <- fread(votingdata.counties.path)
+
+votingdata.state.path <- 'data/1976-2020-president.csv'
+votingdata.state <- fread(votingdata.state.path)
 
 # Aggregate voting data to county level democratic / republican ratio **********
 
@@ -80,6 +85,27 @@ votingdata.ratio <- data.frame(matrix(c(votingdata.bycounty.byparty$county_name,
 # Change county names to lower
 votingdata.ratio$county <- unlist(lapply(votingdata.ratio$county, tolower))
 
+# Create state level democratic / republican ratio *****************************
+
+# Only keep 2020 results
+votingdata.state <- votingdata.state[votingdata.state$year == 2020]
+
+# Pivot the data to have columns for the different parties
+votingdata.bystate.byparty <- pivot_wider(votingdata.state, id_cols = 'state', names_from ='party_simplified',
+                                           values_from = 'candidatevotes', names_repair = "check_unique")
+
+# Change to numeric
+votingdata.bystate.byparty$DEMOCRAT <- as.numeric(votingdata.bystate.byparty$DEMOCRAT)
+votingdata.bystate.byparty$REPUBLICAN <- as.numeric(votingdata.bystate.byparty$REPUBLICAN)
+
+# Calculate ratio between democratic and republican votes
+votingdata.state.ratio <- data.frame(matrix(c(votingdata.bystate.byparty$state, 
+                                              votingdata.bystate.byparty$DEMOCRAT / (votingdata.bystate.byparty$DEMOCRAT + votingdata.bystate.byparty$REPUBLICAN)), ncol = 2)) %>%
+  'names<-'(c('state', 'DemocratRepublicanRatio'))
+
+# Change county names to lower
+votingdata.state.ratio$state <- unlist(lapply(votingdata.state.ratio$state, tolower))
+
 # Assign county to used car observations ***************************************
 
 # Create normal data frame with coordinates of listings
@@ -95,18 +121,21 @@ counties_of_coordinates <- data.frame(counties_of_coordinates) %>%
 
 # Join voting ratio to car data by county, append columns to ffdf
 counties_of_cord_with_ratio <- left_join(counties_of_coordinates, votingdata.ratio, by='county')
+states_of_cord_with_ratio <- left_join(counties_of_coordinates, votingdata.state.ratio, by='state')
 carListings$state <- as.ff(factor(counties_of_cord_with_ratio[, 1]))
 carListings$county <- as.ff(factor(counties_of_cord_with_ratio[, 2]))
 carListings$DemRepRatio <- as.ff(as.numeric(counties_of_cord_with_ratio[, 3]))
+carListings$StateDemRepRatio <- as.ff(as.numeric(states_of_cord_with_ratio[, 3]))
 
 # Clean ffdf that only contains listings combined with voting data
-carListingsClean <- carListings[!is.na(carListings$DemRepRatio)]
+carListingsClean <- carListings[!is.na(carListings$StateDemRepRatio)]
 
 # Save this clean ffdf
 system("mkdir ffdfClean")
 save.ffdf(carListingsClean, dir = './ffdfClean', overwrite = TRUE)
 
-
+# end the timer
+toc()
 
 ## Analysis ********************************************************************
 # 
