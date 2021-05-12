@@ -173,6 +173,9 @@ OLS_R2 <- cor(forecast_evaluate$DemRepRatio, forecast_evaluate$forecast) ^ 2
 # RMSE
 OLS_RMSE <- rmse(forecast_evaluate$DemRepRatio, forecast_evaluate$forecast)
 
+# Save to evaluate performance
+write.csv(forecast_evaluate, 'intermediate_data/DemRepRatiosOLSEvaluateForecast.csv')
+
 # Forecast *********************************************************************
 forecast <- predict(ols, carListings.df.forecast)
 forecast <- as.data.frame(cbind(cbind(as.character(stateForecast), as.character(countyForecast)), forecast))
@@ -203,14 +206,19 @@ forecast$forecast <- olsTest$coefficients[1] + olsTest$coefficients[2] * forecas
 forecast <- as.data.frame(forecast)
 names(forecast) <- c('state', 'county', 'forecast')
 
+
+
 # Visualize ********************************************************************
 
 library(raster)
 library(leaflet)
 
 # Create df of all existing county dem rep ratios
-as.data.frame(cbind(cbind(as.character(stateTrain), as.character(countyTrain)), carListings.df.withCounty$DemRepRatio))
-availableDemRepRatios <- unique(carListings.df.withCounty[, c('state', 'county', 'DemRepRatio')])
+availableDemRepRatios <- unique(as.data.frame(cbind(cbind(as.character(stateTrain), as.character(countyTrain)), carListings.df.withCounty$DemRepRatio)))
+names(availableDemRepRatios) <- c('state', 'county', 'DemRepRatio')
+availableDemRepRatios$DemRepRatio <- as.numeric(availableDemRepRatios$DemRepRatio)
+
+write.csv(availableDemRepRatios, 'intermediate_data/DemRepRatiosAvailable.csv')
 
 # Get USA polygon data
 USA <- getData("GADM", country = "usa", level = 2)
@@ -238,7 +246,11 @@ m <- leaflet() %>%
 #           title = "Value",
 #           opacity = 1)
 
-mapshot(m, 'plots/MapAvailableCountyVotingOutome.png')
+# Show map
+m
+
+# Export
+mapshot(m,'plots/MapAvailableCountyVotingOutcome.html', file='plots/MapAvailableCountyVotingOutcome.png')
 
 # Now add a map with forecasts
 names(forecast) <- c('state', 'county', 'DemRepRatio')
