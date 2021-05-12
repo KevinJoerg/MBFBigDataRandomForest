@@ -110,7 +110,7 @@ dtrain = xgb.DMatrix(data = './data/train.csv?format=csv&label_column=0#dtrain.c
 dtest = xgb.DMatrix(data = './data/test.csv?format=csv&label_column=0#dtest.cache') 
 
 # load parameters from 04_XGBoost
-load('./models/params_xgb.RData')
+load('./models/xgb_params.RData')
 
 # take the parameters of the loaded file
 params <- list(booster = params_xgb$booster, 

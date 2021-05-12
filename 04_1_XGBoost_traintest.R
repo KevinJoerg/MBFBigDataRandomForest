@@ -51,8 +51,10 @@ load.ffdf(dir='./ffdfClean2')
 
 ### DATA CLEANING ### ----------------------------------------------
 
+carListingsClean <- data.frame(carListingsClean)
+
 # for performance reasons
-#carListingsClean <- carListingsClean[1:1000,]
+carListingsClean <- carListingsClean[1:1000,]
 
 # delete columns we don't need for the regression
 carListingsClean$county <- NULL
@@ -323,7 +325,7 @@ plot_v3 <- ggplot(data = data.frame(test_sparse)) +
 plot_v3
 
 
-# SAVE MODELS AND PLOTS -----------------------------
+# SAVE MODELS AND PLOTS ----------------------------
 
 # make dir
 dir.create('./plots/')
@@ -338,17 +340,17 @@ ggsave('plot_xgb.png', path = './Plots/', plot = plot_xgb, device = 'png')
 ggsave('plot_xgb_importance.png', path = './Plots/', plot = plot_xgb_importance, device = 'png')
 
 # save model to local file
-xgb.save(xgb, "./Models/xgboost.model")
+xgb.save(xgb, "./models/xgboost.model")
 
 # save results
-save(results_xgb,file="./Models/results_xgboost.RData")
+save(results_xgb,file="./models/xgb_results.RData")
 
 # save errors
-save(errors_xgb, file = "./Models/errors_xgb.RData")
+save(errors_xgb, file = "./models/xgb_errors.RData")
 
 # save parameters
-save(params_xgb, file = "./Models/params_xgb.RData")
-save(xgb_best_iteration, file = "./Models/xgb_best_iteration.RData")
+save(params_xgb, file = "./models/xgb_params.RData")
+save(xgb_best_iteration, file = "./models/xgb_best_iteration.RData")
 
 
 

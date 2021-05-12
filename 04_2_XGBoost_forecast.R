@@ -151,7 +151,7 @@ gc()
 ### MODEL 2: FIND OPTIMAL ITERATIONS ###  -----------------------------
 
 # take the parameters of mytune
-params_xgb <- list(booster = mytune$x$booster, 
+params_xgb_withStateDemRatio <- list(booster = mytune$x$booster, 
                    objective = "reg:squarederror",
                    eta=mytune$x$eta, # learning rate, usually between 0 and 1. makes the model more robust by shrinking the weights on each step
                    gamma=mytune$x$gamma, # regularization (prevents overfitting), higher means more penalty for large coef. makes the algo more conservative
@@ -163,7 +163,7 @@ params_xgb <- list(booster = mytune$x$booster,
 
   
 # using cross-validation to find optimal nrounds parameter
-xgbcv <- xgb.cv(params = params_xgb,
+xgbcv <- xgb.cv(params = params_xgb_withStateDemRatio,
               data = dtrain, 
               nrounds = 1000L, 
               nfold = 5,
@@ -186,7 +186,7 @@ Rather it does the parallelization WITHIN a single tree my using openMP to creat
 
 # training with optimized nrounds and params
 # best is to let out the num threads, as xgboost takes all by default
-xgb <- xgb.train(params = params_xgb, 
+xgb_withStateDemRatio <- xgb.train(params = params_xgb_withStateDemRatio, 
                   data = dtrain, 
                   nrounds = xgb_best_iteration, 
                   watchlist = list(test = dtest, train = dtrain), 
@@ -198,8 +198,8 @@ xgb <- xgb.train(params = params_xgb,
 ### TESTING THE MODEL ###--------------------------------------------
 
 # predict
-xgb_pred_train <- predict(xgb, dtrain)
-xgb_pred_test <- predict(xgb, dtest)
+xgb_pred_train <- predict(xgb_withStateDemRatio, dtrain)
+xgb_pred_test <- predict(xgb_withStateDemRatio, dtest)
 
 # metrics for train
 rmse_xgb_train <- sqrt(mean((xgb_pred_train - train_target)^2))
@@ -223,6 +223,7 @@ errors_xgb <- xgb_pred_test - test_target
 # print results
 results_xgb_withStateDemRatio
 
+
 ### TESTING THE MODEL ON DATA WITH NO OBSERVATIONS FOR DEM-REP-RATIOS ###--------------------------------------------
 
 # prepare dataframe by omitting DemRepRatio
@@ -235,7 +236,14 @@ matrix_forecast <- model.matrix(index~.-1, data = carListingsClean.forecast)
 colnames(matrix_forecast[1:10,])
 
 # predict values
-predict(xgb, matrix_forecast)
+predict(xgb_withStateDemRatio, matrix_forecast)
+
+
+
+### SAVE ###--------------------------------------------
+
+save(xgb_withStateDemRatio, file = './models/xgb_withStateDemRatio.RData')
+save(params_xgb_withStateDemRatio, file = "./models/params_xgb_withStateDemRatio.RData")
 
 
 toc()
