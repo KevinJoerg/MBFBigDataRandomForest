@@ -71,7 +71,7 @@ But are those socio-economic gaps also visible when it comes to the American's l
 
     <font size="-0.3">
 
-    + Voting outcome in 30/50 states and 1427/3006 counties
+    + Voting outcome of 1427/3006 counties in 30/50 states
     + Split of votes for Presidential candidates per jurisdiction
    
     </font>
@@ -160,7 +160,12 @@ $\frac{democraticvotes}{democratic votes + republican votes}$
 
 ## Sample in Use (2/2)
 
-Available voting results by county
+
+<center>
+
+![](./plots/MapAvailableCountyVotingOutcome_cropped.png)
+</center>
+
 
 ## Analysis Approaches
 
@@ -218,6 +223,7 @@ Show map with final prediction outcome by linear estimator
 <center>
 
 ![](./plots/plot_xgb.png){width=60%}
+</center>
 
 ## XGBoost number of trees optimization
 
