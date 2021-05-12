@@ -1,24 +1,16 @@
-### XGBOOST ###
+### XGBOOST forecast ###
 ### Authors: Tim Graf, Kevin Jörg, Moritz Dänliker ###
 
-"note: 
-Xgboost manages only numeric vectors. Hence we convert all factors to spare matrix with binary format
-
-For many machine learning algorithms, using correlated features is not a good idea. 
-It may sometimes make prediction less accurate, and most of the time make interpretation of the model 
-almost impossible. GLM, for instance, assumes that the features are uncorrelated.
-Fortunately, decision tree algorithms (including boosted trees) are very robust to these features. 
-Therefore we have nothing to do to manage this situation.
-
-Decision trees do not require normalization of their inputs; 
-and since XGBoost is essentially an ensemble algorithm comprised of decision trees, 
-it does not require normalization for the inputs either.
+"Note: 
+Here we train and predict the data for counties where we currently do not have any DemRepRatios observed. 
+At the time being of this paper, the data of Democrat / Republicans Ratio on a county level hasn't been published for every county in the US. 
+Thus, we cannot assess the predictive power of the algorithm and need to wait for the official results to be publish. 
+However, we therefore include the DemRepRatio on a state-level and use is as training for the algorithm and forecast. 
 "
 
 # first install libomp by using the termin and the following command: 
 # brew install libomp
 
-library(libomp)
 library(xgboost)
 library(Matrix)
 library(mlr)
@@ -51,12 +43,17 @@ load.ffdf(dir='./ffdfClean2')
 
 ### DATA CLEANING ### ----------------------------------------------
 
-carListingsClean <- data.frame(carListingsClean[1:1000,])
+# we load here only data for which we don't yet observe the DemRepRatio on a county level
+carListingsClean.forecast <- carListingsClean[is.na(carListingsClean$DemRepRatio), ]
+carListingsClean.forecast$state <- NULL
+carListingsClean.forecast$county <- NULL
+
+# for performance reasons
+carListingsClean <- carListingsClean[1:1000,]
 
 # delete columns we don't need for the regression
 carListingsClean$county <- NULL
 carListingsClean$state <- NULL
-carListingsClean$StateDemRepRatio <- NULL
 
 # omit the NAs for XGBoost
 carListingsClean <- na.omit(carListingsClean)
@@ -89,7 +86,7 @@ sparse_matrix_test <- model.matrix((DemRepRatio)~.-1, data = test)
 dtrain <- xgb.DMatrix(data = sparse_matrix_train, label = train_target)
 dtest <- xgb.DMatrix(data = sparse_matrix_test, label = test_target)
 
-rm(data, train_ind, carListingsClean)
+rm(train_ind, carListingsClean)
 gc()
 
 
@@ -164,29 +161,6 @@ params_xgb <- list(booster = mytune$x$booster,
                    colsample_bytree = mytune$x$colsample_bytree # number of variables per tree, typically between 0.5 - 0.9
                    ) 
 
-
-
-# # test tree-methods
-# # note that there exists also "gpu_hist" but this only runs on CUDA-enable GPUs by NVIDIA
-# tree_method = c('hist', 'exact')
-# xgbtree.time = list()
-# for (i in 1:length(tree_method)) {
-#   xgbtree.time[[i]] = system.time({
-#     xgbcv <- xgb.cv(params = params_xgb,
-#                     data = dtrain, 
-#                     nrounds = 10L, 
-#                     nfold = 5,
-#                     showsd = T, # whether to show standard deviation of cv
-#                     stratified = F, 
-#                     print_every_n = 1, 
-#                     early_stopping_rounds = 50, # stop if we don't see much improvement
-#                     maximize = F, # should the metric be maximized?
-#                     verbose = 2, 
-#                     tree_method = tree_method[i])
-#   })
-# }
-# xgbtree.time
-
   
 # using cross-validation to find optimal nrounds parameter
 xgbcv <- xgb.cv(params = params_xgb,
@@ -240,117 +214,28 @@ adj_r2_xgb_test <- 1 - ((1 - r2_xgb_test) * (nrow(test_target) - 1)) / (nrow(tes
 # combining results
 results_xgb_train <- rbind(rmse_xgb_train, r2_xgb_train, adj_r2_xgb_train)
 results_xgb_test <- rbind(rmse_xgb_test, r2_xgb_test, adj_r2_xgb_test)
-results_xgb <- data.frame(cbind(results_xgb_train, results_xgb_test))
-colnames(results_xgb) <- c("train_xgb", "test_xgb")
-rownames(results_xgb) <- c("RMSE", "R2", "ADJ_R2")
+results_xgb_withStateDemRatio <- data.frame(cbind(results_xgb_train, results_xgb_test))
+colnames(results_xgb_withStateDemRatio) <- c("train_xgb", "test_xgb")
+rownames(results_xgb_withStateDemRatio) <- c("RMSE", "R2", "ADJ_R2")
 
 errors_xgb <- xgb_pred_test - test_target
 
 # print results
-results_xgb
+results_xgb_withStateDemRatio
 
+### TESTING THE MODEL ON DATA WITH NO OBSERVATIONS FOR DEM-REP-RATIOS ###--------------------------------------------
 
-# PLOTS --------------------------------------------------
+# prepare dataframe by omitting DemRepRatio
+carListingsClean.forecast$DemRepRatio <- NULL
+carListingsClean.forecast$index <- as.ff(seq(1:nrow(carListingsClean.forecast)))
+str(data.frame(carListingsClean.forecast))
 
-# from wide to long dataframe needed for plotting
-log <- xgb$evaluation_log %>% gather(key = 'dataset', value = 'RMSE', -iter)
+# create a sparse matrix
+matrix_forecast <- model.matrix(index~.-1, data = carListingsClean.forecast)
+colnames(matrix_forecast[1:10,])
 
-# plot RMSE improvement 
-plot_rmse <- ggplot(data = log, aes(x = iter, y = RMSE, color = dataset)) +
-  geom_point() +
-  xlab('iteration') +
-  ggtitle('Return Mean Squared Error over iterations')
-plot_rmse
-
-# plot an example tree of all
-xgb.plot.tree(feature_names = names(dtrain), 
-              model = xgb, 
-              trees = 1)
-
-# Plot importance
-importance <- xgb.importance(feature_names = colnames(sparse_matrix_train), model = xgb)
-xgb_importance <- xgb.plot.importance(importance_matrix = importance, top_n = 15)
-plot_xgb_importance <- xgb_importance %>%
-  mutate(Feature = fct_reorder(Feature, Importance)) %>%
-  ggplot(aes(x=Feature, y=Importance)) +
-  geom_bar(stat="identity", fill="#f68060", alpha=.6, width=.4) +
-  coord_flip() +
-  xlab("") +
-  theme_bw() +
-  ggtitle('Feature Importance Plot for XG-Boost')
-plot_xgb_importance
-
-# define top 3 relevant variables
-variable1 = xgb_importance$Feature[1]
-variable2 = xgb_importance$Feature[2]
-variable3 = xgb_importance$Feature[3]
-
-# merge dataframes
-merged_df <- data.frame(cbind(xgb_pred_test, test_target)) #by 0 merges based on index
-colnames(merged_df) <- c('xgb_pred_test', 'DemRepRatio')
-merged_df <- merged_df[order(merged_df$DemRepRatio),]
-merged_df$initialindex <- row.names(merged_df)
-row.names(merged_df) <- NULL
-
-# Plot predicted vs. actual 
-colors <- c("actual" = "red", "predicted" = "blue")
-plot_xgb <- ggplot(data = merged_df, aes(x = as.numeric(row.names(merged_df)))) +
-  geom_point(aes(y = xgb_pred_test, color = 'predicted')) +
-  geom_point(aes(y = DemRepRatio, color = 'actual')) +
-  ggtitle('Actual vs. predicted values') + 
-  scale_color_manual(values = colors) +
-  labs(x = 'Index', y = 'DemRepRatio')
-plot_xgb
-
-# create datafrome for plotting
-test_sparse <- model.matrix(~.-1, data = test)
-
-# Plot most Top 1 variable vs. actual 
-plot_v1 <- ggplot(data = data.frame(test_sparse)) +
-  geom_point(aes(x = !!ensym(variable1), y = DemRepRatio)) +
-  ggtitle(paste0('DemRepRatio vs. ', variable1))
-plot_v1
-
-# Plot most Top 2 variable vs. actual 
-plot_v2 <- ggplot(data = data.frame(test_sparse)) +
-  geom_point(aes(x = !!ensym(variable2), y = DemRepRatio)) +
-  ggtitle(paste0('DemRepRatio vs. ', variable2))
-plot_v2
-
-# Plot most Top 3 variable vs. actual 
-plot_v3 <- ggplot(data = data.frame(test_sparse)) +
-  geom_point(aes(x = !!ensym(variable3), y = DemRepRatio)) +
-  ggtitle(paste0('DemRepRatio vs. ', variable3))
-plot_v3
-
-
-# SAVE MODELS AND PLOTS -----------------------------
-
-# make dir
-dir.create('./plots/')
-dir.create('./models/')
-
-# save plot
-ggsave('plot_rmse', path = './Plots/', plot = plot_rmse, device = 'png')
-ggsave('plot_xgb_v1.png', path = './Plots/', plot = plot_v1, device = 'png')
-ggsave('plot_xgb_v2.png', path = './Plots/', plot = plot_v2, device = 'png')
-ggsave('plot_xgb_v3.png', path = './Plots/', plot = plot_v3, device = 'png')
-ggsave('plot_xgb.png', path = './Plots/', plot = plot_xgb, device = 'png')
-ggsave('plot_xgb_importance.png', path = './Plots/', plot = plot_xgb_importance, device = 'png')
-
-# save model to local file
-xgb.save(xgb, "./Models/xgboost.model")
-
-# save results
-save(results_xgb,file="./Models/results_xgboost.RData")
-
-# save errors
-save(errors_xgb, file = "./Models/errors_xgb.RData")
-
-# save parameters
-save(params_xgb, file = "./Models/params_xgb.RData")
-save(xgb_best_iteration, file = "./Models/xgb_best_iteration.RData")
-
+# predict values
+predict(xgb, matrix_forecast)
 
 
 toc()

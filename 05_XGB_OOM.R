@@ -1,4 +1,4 @@
-### XGBOOST ###
+### XGBOOST Out-of-memory approach ###
 ### Authors: Tim Graf, Kevin Jörg, Moritz Dänliker ###
 
 "note: 
@@ -141,7 +141,6 @@ xgb <- xgb.train(data = dtrain,
 
 train_target <- getinfo(dtrain, name = 'label')
 test_target <- getinfo(dtest, name = 'label')
-
 
 # predict
 xgb_pred_train <- predict(xgb, dtrain)
