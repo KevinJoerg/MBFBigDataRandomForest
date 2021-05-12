@@ -206,7 +206,8 @@ forecast$forecast <- olsTest$coefficients[1] + olsTest$coefficients[2] * forecas
 forecast <- as.data.frame(forecast)
 names(forecast) <- c('state', 'county', 'forecast')
 
-
+# Save to evaluate performance
+write.csv(forecast, 'intermediate_data/DemRepRatiosOLSForecast.csv')
 
 # Visualize ********************************************************************
 
