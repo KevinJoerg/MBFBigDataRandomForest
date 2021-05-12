@@ -26,7 +26,6 @@ library(ffbase)
 library(ffbase2)
 
 
-
 ### SETUP ### ----------------------------------------------
 
 tic()
@@ -45,8 +44,6 @@ load.ffdf(dir='./ffdfClean2')
 
 # we load here only data for which we don't yet observe the DemRepRatio on a county level
 carListingsClean.forecast <- carListingsClean[is.na(carListingsClean$DemRepRatio), ]
-carListingsClean.forecast$state <- NULL
-carListingsClean.forecast$county <- NULL
 
 # for performance reasons
 carListingsClean <- carListingsClean[1:1000,]
@@ -181,8 +178,7 @@ xgb_best_iteration_withStateDemRatio <- xgbcv$best_iteration
 
 ### MODEL 3: RUN WITH OPTIMAL PARAMETERS ###  -----------------------------
 'Xgboost doesnt run multiple trees in parallel like you noted, you need predictions after each tree to update gradients.
-Rather it does the parallelization WITHIN a single tree my using openMP to create branches independently'
-
+Rather it does the parallelization WITHIN a single tree by using openMP to create branches independently'
 
 # training with optimized nrounds and params
 # best is to let out the num threads, as xgboost takes all by default
@@ -224,17 +220,49 @@ results_xgb_withStateDemRatio
 
 ### TESTING THE MODEL ON DATA WITH NO OBSERVATIONS FOR DEM-REP-RATIOS ###--------------------------------------------
 
-# prepare dataframe by omitting DemRepRatio
+# remove not needed values
+rm(list=setdiff(ls(), c("xgb_withStateDemRatio", 'xgb_withStateDemRatio', 'params_xgb_withStateDemRatio', 'results_xgb_withStateDemRatio', 'carListingsClean.forecast', 'xgb_best_iteration_withStateDemRatio')))
+gc()
+
+copy <- carListingsClean.forecast #
+
+carListingsClean.forecast <- copy #
+
+# prepare dataframe before prediction
+carListingsClean.forecast.dt <- data.table(data.frame(carListingsClean.forecast))
+index <- as.numeric(seq(1:nrow(carListingsClean.forecast.dt)))
+state <- as.character(carListingsClean.forecast.dt$state)
+county <- as.character(carListingsClean.forecast.dt$county)
+df <- data.frame(cbind(index, state, county))
+df$index <- as.numeric(index)
+
+# add and delete variables in ffdf
+carListingsClean.forecast$index <- as.ff(index)
+carListingsClean.forecast$county <- NULL
+carListingsClean.forecast$state <- NULL
 carListingsClean.forecast$DemRepRatio <- NULL
-carListingsClean.forecast$index <- as.ff(seq(1:nrow(carListingsClean.forecast)))
-str(data.frame(carListingsClean.forecast))
+
 
 # create a sparse matrix
-matrix_forecast <- model.matrix(index~.-1, data = carListingsClean.forecast)
-colnames(matrix_forecast[1:10,])
+# note that we keep track of the index with "index_new" as the model.matrix omits factors for which there are no observations
+# this results in a smaller dataframe
+matrix_forecast <- model.matrix(~.-1, data = carListingsClean.forecast)
+index_new <- matrix_forecast[,'index']
+matrix_forecast <- matrix_forecast[,-ncol(matrix_forecast)] 
+
+# check if we get equal length
+identical(nrow(matrix_forecast), length(index_new))
 
 # predict values
-xgb_forecast <- data.table(predict(xgb_withStateDemRatio, matrix_forecast))
+forecast <- data.table(predict(xgb_withStateDemRatio, matrix_forecast))
+forecast$index <- index_new
+
+# check if we get equal length
+identical(nrow(matrix_forecast), length(index_new), nrow(forecast))
+
+# merge both dataframes for later
+xgb_forecast <- inner_join(forecast, df, by = 'index')
+colnames(xgb_forecast) = c('forecast', 'index', 'state', 'county')
 
 
 ### SAVE ###--------------------------------------------
@@ -246,6 +274,7 @@ xgb.save(xgb_withStateDemRatio, './models/xgb_model_withStateDemRatio')
 save(xgb_best_iteration_withStateDemRatio, file = './models/xgb_best_iteration_withStateDemRatio.RData')
 save(xgb_withStateDemRatio, file = './models/xgb_withStateDemRatio.RData')
 save(params_xgb_withStateDemRatio, file = "./models/params_xgb_withStateDemRatio.RData")
+save(results_xgb_withStateDemRatio, file = "./models/results_xgb_withStateDemRatio.RData")
 
 # save output
 fwrite(xgb_forecast, file = './models/xgb_forecast.csv', row.names = FALSE)

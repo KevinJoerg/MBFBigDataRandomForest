@@ -208,8 +208,7 @@ xgb_best_iteration <- xgbcv$best_iteration
 
 ### MODEL 3: RUN WITH OPTIMAL PARAMETERS ###  -----------------------------
 'Xgboost doesnt run multiple trees in parallel like you noted, you need predictions after each tree to update gradients.
-Rather it does the parallelization WITHIN a single tree my using openMP to create branches independently'
-
+Rather it does the parallelization WITHIN a single tree by using openMP to create branches independently'
 
 # training with optimized nrounds and params
 # best is to let out the num threads, as xgboost takes all by default
@@ -227,28 +226,6 @@ xgb <- xgb.train(params = params_xgb,
 # predict
 xgb_pred_train <- data.table(predict(xgb, dtrain))
 xgb_pred_test <- data.table(predict(xgb, dtest))
-
-# # metrics for train
-# rmse_xgb_train <- sqrt(mean((xgb_pred_train - train_target)^2))
-# r2_xgb_train <- 1 - ( sum((train_target-xgb_pred_train)^2) / sum((train_target-mean(train_target))^2) )
-# adj_r2_xgb_train <- 1 - ((1 - r2_xgb_train) * (nrow(train_target) - 1)) / (nrow(train_target) - ncol(train_target) - 1)
-# 
-# # metrics for test
-# rmse_xgb_test <- sqrt(mean((xgb_pred_test - test_target)^2))
-# r2_xgb_test <- 1 - ( sum((test_target-xgb_pred_test)^2) / sum((test_target-mean(test_target))^2) )
-# adj_r2_xgb_test <- 1 - ((1 - r2_xgb_test) * (nrow(test_target) - 1)) / (nrow(test_target) - ncol(test_target) - 1)
-# 
-# # combining results
-# results_xgb_train <- rbind(rmse_xgb_train, r2_xgb_train, adj_r2_xgb_train)
-# results_xgb_test <- rbind(rmse_xgb_test, r2_xgb_test, adj_r2_xgb_test)
-# results_xgb <- data.frame(cbind(results_xgb_train, results_xgb_test))
-# colnames(results_xgb) <- c("train_xgb", "test_xgb")
-# rownames(results_xgb) <- c("RMSE", "R2", "ADJ_R2")
-# 
-# errors_xgb <- xgb_pred_test - test_target
-# 
-# # print results
-# results_xgb
 
 
 ### PLOTS --------------------------------------------------
