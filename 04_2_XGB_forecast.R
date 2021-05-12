@@ -273,8 +273,8 @@ xgb.save(xgb_withStateDemRatio, './models/xgb_model_withStateDemRatio')
 # save xgb files
 save(xgb_best_iteration_withStateDemRatio, file = './models/xgb_best_iteration_withStateDemRatio.RData')
 save(xgb_withStateDemRatio, file = './models/xgb_withStateDemRatio.RData')
-save(params_xgb_withStateDemRatio, file = "./models/params_xgb_withStateDemRatio.RData")
-save(results_xgb_withStateDemRatio, file = "./models/results_xgb_withStateDemRatio.RData")
+save(params_xgb_withStateDemRatio, file = "./models/xgb_params_withStateDemRatio.RData")
+save(results_xgb_withStateDemRatio, file = "./models/xgb_results_withStateDemRatio.RData")
 
 # save output
 fwrite(xgb_forecast, file = './models/xgb_forecast.csv', row.names = FALSE)
