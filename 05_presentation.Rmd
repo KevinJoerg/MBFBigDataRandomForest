@@ -164,36 +164,32 @@ Available voting results by county
 
 ## Analysis Approaches
 
-**Linear Regression on CPU**
-    
-    - regular
-
-**Linear Regression on GPU**
-
+**Linear Regression** 
+  
+  - on CPU
+  - on GPU
     - package 'GPUtools' was used to ....
     - CUDA for INVIDIA GPUs (downfall: does not work on other GPUs)
 
 
 **XGBoost**
+Gradient boosted tree-concept deriving predictions from bootstrap aggregation
 
-    - Gradient boosted tree-concept deriving predictions from bootstrap aggregation
-    - out-of-memory approach
+  - in RAM
+  - Out-of-memory
     - Parallelization
+
 
 ## Linear regression Coefficients and Robustness
 * Tested for heteroskedasticity and mulitcollinearity
 
 ## XGBoost parameter importance plot
-
-Visualisation of Results with XGBoost
-
-## Computational results
-
---> here a graph with adj. R2, RSME, and computational time to be shown
-
+<center>
+![](./plots/plot_xgb_importance.png){width=60%}
+</center>
 ## Train Test
 
-Show grwah here with R^2 etc. of train and test samples for both methodologies
+Show table here with R^2 etc. of train and test samples for both methodologies
 
 ## Results with XGBoost prediction
 
@@ -204,7 +200,6 @@ Show map with final prediction outcome by XGBoost estimator
 https://github.com/MEDSL/2020-elections-official
 https://www.kaggle.com/ananaymital/us-used-cars-dataset
 
-## Final resuts visualized
 
 ## XGBoost: Concept
 <center>
@@ -214,4 +209,17 @@ https://www.kaggle.com/ananaymital/us-used-cars-dataset
 ## Results with linear regression
 
 Show map with final prediction outcome by linear estimator 
+
+
+## Actual vs. predicted values (Linear)
+
+## Actual vs. predicted values (XGBoost)
+
+<center>
+
+![](./plots/plot_xgb.png){width=60%}
+
+## XGBoost number of trees optimization
+
+
 
