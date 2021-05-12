@@ -21,8 +21,11 @@ rm(list = ls())
 
 ### SETUP ### ------------------------------------------------
 
-# start the timer
-tic()
+# # Alternative approach to read in data
+# df <- fread('./data/used_cars_data.csv', verbose = FALSE)
+# pryr::object_size(df)
+# str(df)
+
 
 # set wd to where the source file is
 # make sure you have the datafiles in a /data/ folder
@@ -56,16 +59,16 @@ for (column in colnames(carListings.df)){
 }
 
 # Split into two df, one with known county dem rep ratio, one without
-carListings.df.train <- carListings.df[!is.na(carListings.df$DemRepRatio), ]
+carListings.df.withCount <- carListings.df[!is.na(carListings.df$DemRepRatio), ]
 carListings.df.forecast <- carListings.df[is.na(carListings.df$DemRepRatio), ]
 
 # For OLS, drop state and county
-countyTrain <- carListings.df.train$county
+countyTrain <- carListings.df.withCount$county
 countyForecast <- carListings.df.forecast$county
-stateTrain <- carListings.df.train$state
+stateTrain <- carListings.df.withCount$state
 stateForecast <- carListings.df.forecast$state
-carListings.df.train$state <- NULL
-carListings.df.train$county <- NULL
+carListings.df.withCount$state <- NULL
+carListings.df.withCount$county <- NULL
 carListings.df.forecast$state <- NULL
 carListings.df.forecast$county <- NULL
 
@@ -73,10 +76,10 @@ carListings.df.forecast$county <- NULL
 # Regression
 f <- 'DemRepRatio ~ .'
 tic()
-olsgpu <- gpuLm(f, carListings.df.train)
+olsgpu <- gpuLm(f, carListings.df.withCount)
 toc()
 tic()
-ols <- lm(f, carListings.df.train)
+ols <- lm(f, carListings.df.withCount)
 toc()
 
 summary(olsgpu)
@@ -109,7 +112,7 @@ ols_vif_tol(ols)
 ols_correlations(ols)
 
 # Test forecast on existing data ***********************************************
-forecast_evaluate <- predict(ols, carListings.df.train)
+forecast_evaluate <- predict(ols, carListings.df.withCount)
 forecast_evaluate <- as.data.frame(cbind(cbind(as.character(stateTrain), as.character(countyTrain)), forecast_evaluate))
 
 # Scale back
@@ -204,9 +207,9 @@ leaflet() %>%
               fillColor = mypal,
               popup = paste("Region: ", temp$NAME_2, "<br>",
                             "Value: ", round(temp$DemRepRatio,3), "<br>")) #%>%
-  # addLegend(position = "bottomleft", pal = pal.quantile, values = temp$DemRepRatio,
-  #           title = "Value",
-  #           opacity = 1)
+# addLegend(position = "bottomleft", pal = pal.quantile, values = temp$DemRepRatio,
+#           title = "Value",
+#           opacity = 1)
 
 # Now add a map with forecasts
 names(forecast) <- c('state', 'county', 'DemRepRatio')
@@ -229,13 +232,11 @@ leaflet() %>%
               fillColor = mypal,
               popup = paste("Region: ", temp$NAME_2, "<br>",
                             "Value: ", round(temp$DemRepRatio,3), "<br>"))# %>%
-  # addLegend(position = "topleft", pal = pal.quantile, values = temp$DemRepRatio,
-  #           title = "Value",
-  #           opacity = 1)
+# addLegend(position = "topleft", pal = pal.quantile, values = temp$DemRepRatio,
+#           title = "Value",
+#           opacity = 1)
 
 
-# end the timer
-toc()
 
 
 
