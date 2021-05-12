@@ -223,7 +223,12 @@ for (i in num_variables) {
   hist(carListings.df[[i]], main = paste0(i, ' Histogram'), xlab = i)
 }
 
+
+### SELECT ONLY RELEVANT COLUMNS ### --------------------------------------------
+
 # Now only select the relevant variables
+# we have first filtered for outliers, and now only consider the conceptually relevant variables
+# for example horsepower and rpm are correlated, thus we omit rpm
 variablesOfInterest <- c('DemRepRatio','StateDemRepRatio', 'is_new', 'mileage', 'price', 'city_fuel_economy',
                          'horsepower', 'length', 'maximum_seating', 'body_type', 'make_name', 'state', 'county')
 carListingsClean <- carListingsClean[variablesOfInterest]
@@ -253,6 +258,8 @@ for (column in colnames(carListings.df)){
 }
 
 update(carListingsClean, carListings.df)
+
+### SAVE ### --------------------------------------------
 
 # Save this new clean2 ffdf
 system("mkdir ffdfClean2")
