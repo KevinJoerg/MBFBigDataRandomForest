@@ -1,0 +1,254 @@
+### XGBOOST forecast ###
+### Authors: Tim Graf, Kevin Jörg, Moritz Dänliker ###
+
+"Note: 
+Here we train and predict the data for counties where we currently do not have any DemRepRatios observed. 
+At the time being of this paper, the data of Democrat / Republicans Ratio on a county level hasn't been published for every county in the US. 
+Thus, we cannot assess the predictive power of the algorithm and need to wait for the official results to be publish. 
+However, we therefore include the DemRepRatio on a state-level and use is as training for the algorithm and forecast. 
+"
+
+# first install libomp by using the termin and the following command: 
+# brew install libomp
+
+library(xgboost)
+library(Matrix)
+library(mlr)
+library(parallel)
+library(parallelMap) 
+library(randomForest)
+library(data.table)
+library(dplyr)
+library(tidyverse)
+library(tictoc)
+library(ff)
+library(ffbase)
+library(ffbase2)
+
+
+
+### SETUP ### ----------------------------------------------
+
+tic()
+
+rm(list = ls())
+
+# set wd to where the source file is
+# make sure you have the datafiles in a /data/ folder
+setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
+
+# Load the cleaned data
+load.ffdf(dir='./ffdfClean2')
+
+
+### DATA CLEANING ### ----------------------------------------------
+
+# we load here only data for which we don't yet observe the DemRepRatio on a county level
+carListingsClean.forecast <- carListingsClean[is.na(carListingsClean$DemRepRatio), ]
+carListingsClean.forecast$state <- NULL
+carListingsClean.forecast$county <- NULL
+
+# for performance reasons
+carListingsClean <- carListingsClean[1:1000,]
+
+# delete columns we don't need for the regression
+carListingsClean$county <- NULL
+carListingsClean$state <- NULL
+
+# omit the NAs for XGBoost
+carListingsClean <- na.omit(carListingsClean)
+
+
+### SPLIT TRAINING AND TESTING DATASET ### ----------------------------------------------
+
+# set the seed to make your partition reproducible
+set.seed(123)
+smp_size <- floor(0.75 * nrow(carListingsClean)) ## 75% of the sample size
+train_ind <- base::sample(seq_len(nrow(carListingsClean)), size = smp_size)
+
+# Split the data into train and test
+train <- carListingsClean[train_ind,]
+test <- carListingsClean[-train_ind, ]
+
+# convert to factor
+train$is_new <- as.factor(train$is_new)
+test$is_new <- as.factor(test$is_new)
+
+# define training label = dependent variable
+train_target = as.matrix((train[,'DemRepRatio']))
+test_target = as.matrix((test[,'DemRepRatio']))
+
+# convert categorical factor into dummy variables using one-hot encoding
+sparse_matrix_train <- model.matrix((DemRepRatio)~.-1, data = train)
+sparse_matrix_test <- model.matrix((DemRepRatio)~.-1, data = test)
+
+# Create a dense matrix for XGBoost
+dtrain <- xgb.DMatrix(data = sparse_matrix_train, label = train_target)
+dtest <- xgb.DMatrix(data = sparse_matrix_test, label = test_target)
+
+rm(train_ind, carListingsClean)
+gc()
+
+
+### MODEL 1: FIND OPTIMAL PARAMETERS ###  -----------------------------
+
+set.seed(123)
+
+# create tasks for learner
+traintask <- makeRegrTask(data = data.frame(train), target = 'DemRepRatio')
+
+# create dummy features, as classif.xgboost does not support factors
+traintask <- createDummyFeatures(obj = traintask)
+
+# create learner
+# fix number of rounds and eta 
+lrn <- makeLearner("regr.xgboost", predict.type = "response")
+lrn$par.vals <- list(objective="reg:squarederror",
+                     eval_metric="rmse", 
+                     nrounds=100L, 
+                     eta = 0.1)
+
+# set parameter space
+# for computational reasons we only optimize the most important variables with are the booster type and the max depth per tree
+params_xgb <- makeParamSet(makeDiscreteParam("booster", values = c("gbtree", "dart")), # gbtree and dart - use tree-based models, while glinear uses linear models
+                           makeIntegerParam("max_depth",lower = 3L,upper = 10L), 
+                           makeNumericParam("min_child_weight",lower = 1L,upper = 10L), 
+                           makeNumericParam("subsample",lower = 0.2,upper = 1), 
+                           makeNumericParam("colsample_bytree",lower = 0.1,upper = 1), 
+                           makeDiscreteParam("eta", values = c(0.05, 0.1, 0.2)),
+                           makeDiscreteParam("gamma", values = c(0, 0.2, 0.5, 0.7))
+)
+
+# set resampling strategy
+# If you have many classes for a classification type predictive modeling problem or the classes are imbalanced (there are a lot more instances for one class than another), 
+# it can be a good idea to create stratified folds when performing cross validation.
+# however stratification is not supported for regression tasks so we set it to false
+rdesc <- makeResampleDesc("CV",stratify = F, iters=5L)
+
+# search strategy
+# instead of a grid search we use a random search strategy to find the best parameters. 
+ctrl <- makeTuneControlRandom(maxit = 100L) # maxit is the number of iterations for random search
+
+# set parallel backend
+parallelStartSocket(cpus = detectCores(), level = "mlr.tuneParams")
+
+# parameter tuning
+mytune <- tuneParams(learner = lrn, 
+                     task = traintask, 
+                     resampling = rdesc, 
+                     par.set = params_xgb, 
+                     control = ctrl, 
+                     show.info = TRUE)
+
+parallelStop()
+
+# print the optimal parameters
+mytune
+
+gc()
+
+
+### MODEL 2: FIND OPTIMAL ITERATIONS ###  -----------------------------
+
+# take the parameters of mytune
+params_xgb_withStateDemRatio <- list(booster = mytune$x$booster, 
+                   objective = "reg:squarederror",
+                   eta=mytune$x$eta, # learning rate, usually between 0 and 1. makes the model more robust by shrinking the weights on each step
+                   gamma=mytune$x$gamma, # regularization (prevents overfitting), higher means more penalty for large coef. makes the algo more conservative
+                   subsample= mytune$x$subsample, # fraction of observations taken to make each tree. the lower the more conservative and more underfitting, less overfitting. 
+                   max_depth = mytune$x$max_depth, # max depth of trees, the more deep the more complex and overfitting
+                   min_child_weight = mytune$x$min_child_weight, # min number of instances per child node, blocks potential feature interaction and thus overfitting
+                   colsample_bytree = mytune$x$colsample_bytree # number of variables per tree, typically between 0.5 - 0.9
+                   ) 
+
+  
+# using cross-validation to find optimal nrounds parameter
+xgbcv <- xgb.cv(params = params_xgb_withStateDemRatio,
+              data = dtrain, 
+              nrounds = 1000L, 
+              nfold = 5,
+              showsd = T, # whether to show standard deviation of cv
+              stratified = F, 
+              print_every_n = 1, 
+              early_stopping_rounds = 50, # stop if we don't see much improvement
+              maximize = F, # should the metric be maximized?
+              verbose = 2, 
+              tree_method = 'hist')
+
+# Result of best iteration
+xgb_best_iteration_withStateDemRatio <- xgbcv$best_iteration
+
+
+### MODEL 3: RUN WITH OPTIMAL PARAMETERS ###  -----------------------------
+'Xgboost doesnt run multiple trees in parallel like you noted, you need predictions after each tree to update gradients.
+Rather it does the parallelization WITHIN a single tree my using openMP to create branches independently'
+
+
+# training with optimized nrounds and params
+# best is to let out the num threads, as xgboost takes all by default
+xgb_withStateDemRatio <- xgb.train(params = params_xgb_withStateDemRatio, 
+                  data = dtrain, 
+                  nrounds = xgb_best_iteration_withStateDemRatio, 
+                  watchlist = list(test = dtest, train = dtrain), 
+                  maximize = F, 
+                  eval_metric = "rmse", 
+                  tree_method = 'hist') # this accelerates the process 
+
+
+### TESTING THE MODEL ###--------------------------------------------
+
+# predict
+xgb_pred_train <- predict(xgb_withStateDemRatio, dtrain)
+xgb_pred_test <- predict(xgb_withStateDemRatio, dtest)
+
+# metrics for train
+rmse_xgb_train <- sqrt(mean((xgb_pred_train - train_target)^2))
+r2_xgb_train <- 1 - ( sum((train_target-xgb_pred_train)^2) / sum((train_target-mean(train_target))^2) )
+adj_r2_xgb_train <- 1 - ((1 - r2_xgb_train) * (nrow(train_target) - 1)) / (nrow(train_target) - ncol(train_target) - 1)
+
+# metrics for test
+rmse_xgb_test <- sqrt(mean((xgb_pred_test - test_target)^2))
+r2_xgb_test <- 1 - ( sum((test_target-xgb_pred_test)^2) / sum((test_target-mean(test_target))^2) )
+adj_r2_xgb_test <- 1 - ((1 - r2_xgb_test) * (nrow(test_target) - 1)) / (nrow(test_target) - ncol(test_target) - 1)
+
+# combining results
+results_xgb_train <- rbind(rmse_xgb_train, r2_xgb_train, adj_r2_xgb_train)
+results_xgb_test <- rbind(rmse_xgb_test, r2_xgb_test, adj_r2_xgb_test)
+results_xgb_withStateDemRatio <- data.frame(cbind(results_xgb_train, results_xgb_test))
+colnames(results_xgb_withStateDemRatio) <- c("train_xgb", "test_xgb")
+rownames(results_xgb_withStateDemRatio) <- c("RMSE", "R2", "ADJ_R2")
+
+# print results
+results_xgb_withStateDemRatio
+
+
+### TESTING THE MODEL ON DATA WITH NO OBSERVATIONS FOR DEM-REP-RATIOS ###--------------------------------------------
+
+# prepare dataframe by omitting DemRepRatio
+carListingsClean.forecast$DemRepRatio <- NULL
+carListingsClean.forecast$index <- as.ff(seq(1:nrow(carListingsClean.forecast)))
+str(data.frame(carListingsClean.forecast))
+
+# create a sparse matrix
+matrix_forecast <- model.matrix(index~.-1, data = carListingsClean.forecast)
+colnames(matrix_forecast[1:10,])
+
+# predict values
+xgb_forecast <- data.table(predict(xgb_withStateDemRatio, matrix_forecast))
+
+
+### SAVE ###--------------------------------------------
+
+# save xgb model
+xgb.save(xgb_withStateDemRatio, './models/xgb_model_withStateDemRatio')
+
+# save xgb files
+save(xgb_best_iteration_withStateDemRatio, file = './models/xgb_best_iteration_withStateDemRatio.RData')
+save(xgb_withStateDemRatio, file = './models/xgb_withStateDemRatio.RData')
+save(params_xgb_withStateDemRatio, file = "./models/params_xgb_withStateDemRatio.RData")
+
+# save output
+fwrite(xgb_forecast, file = './models/xgb_forecast.csv', row.names = FALSE)
+
+
+toc()
