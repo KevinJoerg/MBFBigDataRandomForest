@@ -15,6 +15,9 @@ and since XGBoost is essentially an ensemble algorithm comprised of decision tre
 it does not require normalization for the inputs either.
 "
 
+# first install libomp by using the termin and the following command: 
+# brew install libomp
+
 library(libomp)
 library(xgboost)
 library(Matrix)
@@ -162,26 +165,6 @@ params_xgb <- list(booster = mytune$x$booster,
                    ) 
 
 
-# # test core methods
-# xgbcore.time = list()
-# cores = c(-1, 1, 16)
-# for (i in 1:length(cores)) {
-#   xgbcore.time[[i]] = system.time({
-#       xgbcv <- xgb.cv(params = params_xgb,
-#                     data = dtrain, 
-#                     nrounds = 10L, 
-#                     nfold = 5,
-#                     showsd = T, # whether to show standard deviation of cv
-#                     stratified = F, 
-#                     print_every_n = 1, 
-#                     n_jobs = cores[i],
-#                     early_stopping_rounds = 50, # stop if we don't see much improvement
-#                     maximize = F, # should the metric be maximized?
-#                     verbose = 2, 
-#                     tree_method = 'hist')
-#     })
-# }
-# xgbcore.time
 
 # # test tree-methods
 # # note that there exists also "gpu_hist" but this only runs on CUDA-enable GPUs by NVIDIA
@@ -221,56 +204,6 @@ xgbcv <- xgb.cv(params = params_xgb,
 # Result of best iteration
 xgb_best_iteration <- xgbcv$best_iteration
 
-### MODEL 2: WITH CARET ###  -----------------------------
-# 
-# xgb_trcontrol = caret::trainControl(
-#   method = "cv",
-#   number = 2,  
-#   allowParallel = TRUE,
-#   verboseIter = TRUE,
-#   returnData = FALSE,
-#   search = 'random'
-# )
-# 
-# xgbGrid <- expand.grid(nrounds = c(100,200),  # this is n_estimators in the python code above
-#                        max_depth = c(10, 15, 20, 25),
-#                        colsample_bytree = seq(0.5, 0.9, length.out = 5),
-#                        ## The values below are default values in the sklearn-api. 
-#                        eta = 0.1,
-#                        gamma=0,
-#                        min_child_weight = 1,
-#                        subsample = 1
-# )
-# 
-# set.seed(0) 
-# 
-# 
-# xgb_model = caret::train(
-#   dtrain, as.double(train_target),  
-#   trControl = xgb_trcontrol,
-#   tuneGrid = xgbGrid,
-#   method = "xgbTree", 
-#   objective = "reg:squarederror"
-# )
-# 
-# 
-# library(doParallel)
-# cl <- makePSOCKcluster(5)
-# registerDoParallel(cl)
-# 
-# parallelStartSocket(cpus = detectCores())
-# parallelStop()
-# 
-# xgb_model2 = caret::train(
-#   dtrain, as.double(train_target),  
-#   trControl = xgb_trcontrol,
-#   tuneGrid = xgbGrid,
-#   method = "xgbTree", 
-#   objective = "reg:squarederror", 
-#   nthread = 16
-# )
-# 
-# stopCluster(cl)
 
 ### MODEL 3: RUN WITH OPTIMAL PARAMETERS ###  -----------------------------
 'Xgboost doesnt run multiple trees in parallel like you noted, you need predictions after each tree to update gradients.
@@ -287,56 +220,6 @@ xgb <- xgb.train(params = params_xgb,
                   eval_metric = "rmse", 
                   tree_method = 'hist') # this accelerates the process 
 
-
-
-### ALTERNATIVE APPROACH ###--------------------------------------------
-
-# # Create 10,000 rows with random hyperparameters
-# 
-# set.seed(20)
-# 
-# # Create empty lists
-# lowest_error_list = list()
-# parameters_list = list()
-# 
-# # create grid
-# for (iter in 1:10){
-#   param <- list(booster = "gbtree",
-#                 objective = "reg:squarederror",
-#                 max_depth = base::sample(3:10, 1),
-#                 eta = runif(1, .01, .3),
-#                 subsample = runif(1, .7, 1),
-#                 colsample_bytree = runif(1, .6, 1),
-#                 min_child_weight = base::sample(0:10, 1), 
-#                 tree_method = 'hist'
-#   )
-#   parameters <- as.data.frame(param)
-#   parameters_list[[iter]] <- parameters
-# }
-# 
-# # Create object that contains all randomly created hyperparameters
-# parameters_df = do.call(rbind, parameters_list)
-# 
-# # Use randomly created parameters to create 10,000 XGBoost-models
-# for (row in 1:nrow(parameters_df)){
-#   set.seed(20)
-#   mdcv <- xgb.train(data=dtrain,
-#                     booster = "gbtree",
-#                     objective = "reg:squarederror",
-#                     max_depth = parameters_df$max_depth[row],
-#                     eta = parameters_df$eta[row],
-#                     subsample = parameters_df$subsample[row],
-#                     colsample_bytree = parameters_df$colsample_bytree[row],
-#                     min_child_weight = parameters_df$min_child_weight[row],
-#                     nrounds= 300,
-#                     eval_metric = "error",
-#                     early_stopping_rounds= 50,
-#                     print_every_n = 10,
-#                     watchlist = list(train= dtrain, val= dtest)
-#   )
-#   lowest_error <- as.data.frame(1 - min(mdcv$evaluation_log$val_error))
-#   lowest_error_list[[row]] <- lowest_error
-# }
 
 ### TESTING THE MODEL ###--------------------------------------------
 
