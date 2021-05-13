@@ -86,7 +86,7 @@ tic()
 olsgpu <- gpuLm(f, carListings.df.withCounty.train)
 toc()
 
-
+# OLS coefficients
 summary(olsgpu)
 summary(ols)
 
@@ -102,7 +102,7 @@ bptest(ols)
 # robust standard errors
 ols.robust <- coeftest(ols, vcov = vcovHC(ols, type = "HC0"))
 ols.robust
-ols.robust.short <- ols.robust[c(1,2,4,5,6,7,11,12,17,18,33,19,21,22,23,24,28,35), 1:4]
+ols.robust.short <- ols.robust[c(1,2,4,5,6,7,11,12,17,18,33,21,22,23,24,35), 1:4]
 ols.robust.short
 saveRDS(ols.robust.short, file='Pictures_presentation/OLSOutput.rds')
 
@@ -119,7 +119,7 @@ ols_vif_tol(ols)
 # accounted for by the other predictors.
 ols_correlations(ols)
 
-# Test forecast on existing data ***********************************************
+###  ***********************************************
 
 # In sample
 forecast_evaluate <- predict(ols, carListings.df.withCounty.train)
