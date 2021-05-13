@@ -12,13 +12,20 @@ logo: ./Pictures_presentation/logo.png
 
 ```{r setup, include=FALSE}
 library(data.table)
+library(data.table)
+library(leaflet)
+library(mapview)
+library(raster)
+library(leaflet.providers)
+library(leaflet.extras)
 knitr::opts_chunk$set(echo = FALSE)
+
 
 # Load some files
 ols.coefficients <- readRDS(file = "Pictures_presentation/OLSOutput.rds")
 performance_metrics <- readRDS(file = 'Pictures_presentation/performance_metrics.rds')
 map <- readRDS(file = "Pictures_presentation/MapComplete.rds")
-
+map
 ```
 
 ## Agenda
