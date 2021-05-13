@@ -4,7 +4,7 @@
 "Note:
 
 This script may not work on computers with little RAM, as the hyperparameter tuning and xgboost use up alot of RAM. 
-If it crashes please try the out-of-memory approach stated in 05_XGB_OOM
+If it crashes please try the out-of-memory approach stated in 04_03_XGB_OOM
 
 * Xgboost manages only numeric vectors. Hence we convert all factors to spare matrix with binary format
 
@@ -59,7 +59,7 @@ load.ffdf(dir='./ffdfClean2')
 carListingsClean <- data.frame(carListingsClean)
 
 # for performance reasons
-carListingsClean <- carListingsClean[1:1000,]
+#carListingsClean <- carListingsClean[1:1000,]
 
 # delete columns we don't need for the regression
 carListingsClean$StateDemRepRatio <- NULL
@@ -108,111 +108,175 @@ rm(train_ind, carListingsClean, i, files, smp_size)
 gc()
 
 
-### MODEL 1: FIND OPTIMAL PARAMETERS ###  -----------------------------
+### MODEL 1: FIND OPTIMAL PARAMETERS - WITH CARET ###  -----------------------------
+"Note: This method uses a lot of memory, thus we do hyperparameter tuning on a subsample
+change n to make it work on computers with less power"
 
-set.seed(123)
+# make a subsample
+n = 0.05
+smp_size <- floor(n * nrow(sparse_matrix_train)) 
+train_ind <- base::sample(seq_len(nrow(sparse_matrix_train)), size = smp_size)
+sparse_matrix_train_subsample <- sparse_matrix_train[train_ind,]
+train_target_subsample <- train_target[train_ind,]
 
-# create tasks for learner
-traintask <- makeRegrTask(data = data.frame(train), target = 'DemRepRatio')
+library(caret)
+library(doParallel)
 
-# create dummy features, as classif.xgboost does not support factors
-traintask <- createDummyFeatures(obj = traintask)
+stopCluster()
+cl <- parallel::makePSOCKcluster(detectCores()-1)
+parallel::clusterEvalQ(cl, library(foreach))
+doParallel::registerDoParallel(cl)
 
-# create learner
-# fix number of rounds and eta 
-lrn <- makeLearner("regr.xgboost", predict.type = "response")
-lrn$par.vals <- list(objective="reg:squarederror",
-                     eval_metric="rmse", 
-                     nrounds=100L, 
-                     eta = 0.1)
-
-# set parameter space
-# for computational reasons we only optimize the most important variables with are the booster type and the max depth per tree
-params_xgb <- makeParamSet(makeDiscreteParam("booster", values = c("gbtree", "dart")), # gbtree and dart - use tree-based models, while glinear uses linear models
-                           makeIntegerParam("max_depth",lower = 3L,upper = 10L), 
-                           makeNumericParam("min_child_weight",lower = 1L,upper = 10L), 
-                           makeNumericParam("subsample",lower = 0.2,upper = 1), 
-                           makeNumericParam("colsample_bytree",lower = 0.1,upper = 1), 
-                           makeDiscreteParam("eta", values = c(0.05, 0.1, 0.2)),
-                           makeDiscreteParam("gamma", values = c(0, 0.2, 0.5, 0.7))
+xgb_trcontrol <- caret::trainControl(
+  method = "cv",
+  number = 2,
+  allowParallel = TRUE,
+  verboseIter = TRUE,
+  returnData = FALSE,
+  search = 'random', 
+  trim = TRUE
 )
 
-# set resampling strategy
-# If you have many classes for a classification type predictive modeling problem or the classes are imbalanced (there are a lot more instances for one class than another), 
-# it can be a good idea to create stratified folds when performing cross validation.
-# however stratification is not supported for regression tasks so we set it to false
-rdesc <- makeResampleDesc("CV",stratify = F, iters=5L)
 
-# search strategy
-# instead of a grid search we use a random search strategy to find the best parameters. 
-ctrl <- makeTuneControlRandom(maxit = 100L) # maxit is the number of iterations for random search
+xgbGrid <- base::expand.grid(nrounds = 100L, 
+                             max_depth = c(4, 6, 8, 10),
+                             colsample_bytree = c(0.3, 0.6, 0.9),
+                             eta = c(0.1, 0.5, 1),
+                             gamma= c(0, 1, 4),
+                             min_child_weight = 1,
+                             subsample = 1
+)
 
-# set parallel backend
-parallelStartSocket(cpus = detectCores(), level = "mlr.tuneParams")
+# # Just for testing purposes
+xgbGrid.simple <- base::expand.grid(nrounds = 100L,
+                                    max_depth = c(4, 6, 10, 15),
+                                    colsample_bytree = c(0.3, 0.6, 0.9),
+                                    eta = 0.1,
+                                    gamma= 0,
+                                    min_child_weight = 1,
+                                    subsample = 1
+)
 
-# parameter tuning
-mytune <- tuneParams(learner = lrn, 
-                     task = traintask, 
-                     resampling = rdesc, 
-                     par.set = params_xgb, 
-                     control = ctrl, 
-                     show.info = TRUE)
+set.seed(0)
 
-parallelStop()
+xgb_model = caret::train(
+  sparse_matrix_train_subsample, as.double(train_target_subsample[, 'DemRepRatio']),
+  trControl = xgb_trcontrol,
+  tuneGrid = xgbGrid,
+  method = "xgbTree",
+  tree_method = 'hist',
+  objective = "reg:squarederror", 
+  tuneLength = 100, 
+  model = FALSE, 
+  returnData = FALSE
+)
 
-# print the optimal parameters
-mytune
 
-gc()
+stopCluster(cl)
+toc()
 
+### MODEL 1: FIND OPTIMAL PARAMETERS - WITH MLR ###  -----------------------------
+"Note: This worked on a MacBook. However, it still consumes a lot of RAM and computing time"
+# 
+# # make the subsample
+# n = 0.01
+# smp_size <- floor(n * nrow(train)) 
+# train_ind <- base::sample(seq_len(nrow(train)), size = smp_size)
+# train_subsample <- train[train_ind,]
+# train_target_subsample <- train_target[train_ind,]
+# 
+# 
+# set.seed(123)
+# 
+# # create tasks for learner
+# traintask <- makeRegrTask(data = data.frame(train), target = 'DemRepRatio')
+# 
+# # create dummy features, as classif.xgboost does not support factors
+# traintask <- createDummyFeatures(obj = traintask)
+# 
+# # create learner
+# # fix number of rounds and eta
+# lrn <- makeLearner("regr.xgboost", predict.type = "response")
+# lrn$par.vals <- list(objective="reg:squarederror",
+#                      eval_metric="rmse",
+#                      nrounds=100L,
+#                      eta = 0.1)
+# 
+# # set parameter space
+# # for computational reasons we only optimize the most important variables with are the booster type and the max depth per tree
+# params_xgb <- makeParamSet(makeDiscreteParam("booster", values = c("gbtree", "dart")), # gbtree and dart - use tree-based models, while glinear uses linear models
+#                            makeIntegerParam("max_depth",lower = 3L,upper = 10L),
+#                            makeNumericParam("min_child_weight",lower = 1L,upper = 10L),
+#                            makeNumericParam("subsample",lower = 0.2,upper = 1),
+#                            makeNumericParam("colsample_bytree",lower = 0.1,upper = 1),
+#                            makeDiscreteParam("eta", values = c(0.05, 0.1, 0.2)),
+#                            makeDiscreteParam("gamma", values = c(0, 0.2, 0.5, 0.7))
+# )
+# 
+# # set resampling strategy
+# # If you have many classes for a classification type predictive modeling problem or the classes are imbalanced (there are a lot more instances for one class than another),
+# # it can be a good idea to create stratified folds when performing cross validation.
+# # however stratification is not supported for regression tasks so we set it to false
+# rdesc <- makeResampleDesc("CV",stratify = F, iters=5L)
+# 
+# # search strategy
+# # instead of a grid search we use a random search strategy to find the best parameters.
+# ctrl <- makeTuneControlRandom(maxit = 100L) # maxit is the number of iterations for random search
+# 
+# # set parallel backend
+# parallelStartSocket(cpus = detectCores(), level = "mlr.tuneParams")
+# 
+# # parameter tuning
+# mytune <- tuneParams(learner = lrn,
+#                      task = traintask,
+#                      resampling = rdesc,
+#                      par.set = params_xgb,
+#                      control = ctrl,
+#                      show.info = TRUE)
+# 
+# parallelStop()
+# 
+# # print the optimal parameters
+# mytune
+# 
+# gc()
+# 
+# # take the parameters of mytune
+# params_xgb <- list(booster = mytune$x$booster,
+#                    objective = "reg:squarederror",
+#                    eta=mytune$x$eta, # learning rate, usually between 0 and 1. makes the model more robust by shrinking the weights on each step
+#                    gamma=mytune$x$gamma, # regularization (prevents overfitting), higher means more penalty for large coef. makes the algo more conservative
+#                    subsample= mytune$x$subsample, # fraction of observations taken to make each tree. the lower the more conservative and more underfitting, less overfitting.
+#                    max_depth = mytune$x$max_depth, # max depth of trees, the more deep the more complex and overfitting
+#                    min_child_weight = mytune$x$min_child_weight, # min number of instances per child node, blocks potential feature interaction and thus overfitting
+#                    colsample_bytree = mytune$x$colsample_bytree # number of variables per tree, typically between 0.5 - 0.9
+#                    )
 
 ### MODEL 2: FIND OPTIMAL ITERATIONS ###  -----------------------------
 
-# take the parameters of mytune
-params_xgb <- list(booster = mytune$x$booster, 
+# take the parameters of xgb_model
+params_xgb <- list(booster = 'dart',
                    objective = "reg:squarederror",
-                   eta=mytune$x$eta, # learning rate, usually between 0 and 1. makes the model more robust by shrinking the weights on each step
-                   gamma=mytune$x$gamma, # regularization (prevents overfitting), higher means more penalty for large coef. makes the algo more conservative
-                   subsample= mytune$x$subsample, # fraction of observations taken to make each tree. the lower the more conservative and more underfitting, less overfitting. 
-                   max_depth = mytune$x$max_depth, # max depth of trees, the more deep the more complex and overfitting
-                   min_child_weight = mytune$x$min_child_weight, # min number of instances per child node, blocks potential feature interaction and thus overfitting
-                   colsample_bytree = mytune$x$colsample_bytree # number of variables per tree, typically between 0.5 - 0.9
-                   ) 
+                   eta=xgb_model$bestTune$eta, # learning rate, usually between 0 and 1. makes the model more robust by shrinking the weights on each step
+                   gamma=xgb_model$bestTune$gamma, # regularization (prevents overfitting), higher means more penalty for large coef. makes the algo more conservative
+                   subsample= xgb_model$bestTune$subsample, # fraction of observations taken to make each tree. the lower the more conservative and more underfitting, less overfitting.
+                   max_depth = xgb_model$bestTune$max_depth, # max depth of trees, the more deep the more complex and overfitting
+                   min_child_weight = xgb_model$bestTune$min_child_weight, # min number of instances per child node, blocks potential feature interaction and thus overfitting
+                   colsample_bytree = xgb_model$bestTune$colsample_bytree # number of variables per tree, typically between 0.5 - 0.9
+)
 
-# # test performance of various tree-methods
-# # note that there exists also "gpu_hist" but this only runs on CUDA-enable GPUs by NVIDIA
-# tree_method = c('hist', 'exact')
-# xgbtree.time = list()
-# for (i in 1:length(tree_method)) {
-#   xgbtree.time[[i]] = system.time({
-#     xgbcv <- xgb.cv(params = params_xgb,
-#                     data = dtrain, 
-#                     nrounds = 10L, 
-#                     nfold = 5,
-#                     showsd = T, # whether to show standard deviation of cv
-#                     stratified = F, 
-#                     print_every_n = 1, 
-#                     early_stopping_rounds = 50, # stop if we don't see much improvement
-#                     maximize = F, # should the metric be maximized?
-#                     verbose = 2, 
-#                     tree_method = tree_method[i])
-#   })
-# }
-# xgbtree.time
-
-  
 # using cross-validation to find optimal nrounds parameter
 xgbcv <- xgb.cv(params = params_xgb,
-              data = dtrain, 
-              nrounds = 1000L, 
-              nfold = 5,
-              showsd = T, # whether to show standard deviation of cv
-              stratified = F, 
-              print_every_n = 1, 
-              early_stopping_rounds = 50, # stop if we don't see much improvement
-              maximize = F, # should the metric be maximized?
-              verbose = 2, 
-              tree_method = 'hist')
+                data = dtrain, 
+                nrounds = 1000L, 
+                nfold = 5,
+                showsd = T, # whether to show standard deviation of cv
+                stratified = F, 
+                print_every_n = 1, 
+                early_stopping_rounds = 50, # stop if we don't see much improvement
+                maximize = F, # should the metric be maximized?
+                verbose = 2, 
+                tree_method = 'hist')
 
 # Result of best iteration
 xgb_best_iteration <- xgbcv$best_iteration
@@ -225,12 +289,12 @@ Rather it does the parallelization WITHIN a single tree by using openMP to creat
 # training with optimized nrounds and params
 # best is to let out the num threads, as xgboost takes all by default
 xgb <- xgb.train(params = params_xgb, 
-                  data = dtrain, 
-                  nrounds = xgb_best_iteration, 
-                  watchlist = list(test = dtest, train = dtrain), 
-                  maximize = F, 
-                  eval_metric = "rmse", 
-                  tree_method = 'hist') # this accelerates the process 
+                 data = dtrain, 
+                 nrounds = xgb_best_iteration, 
+                 watchlist = list(test = dtest, train = dtrain), 
+                 maximize = F, 
+                 eval_metric = "rmse", 
+                 tree_method = 'hist') # this accelerates the process 
 
 
 ### TESTING THE MODEL ###--------------------------------------------
@@ -282,16 +346,17 @@ variable3 = xgb_importance$Feature[3]
 
 # merge dataframes
 merged_df <- data.frame(cbind(xgb_pred_test, test_target)) #by 0 merges based on index
-colnames(merged_df) <- c('xgb_pred_test', 'DemRepRatio')
 merged_df <- merged_df[order(merged_df$DemRepRatio),]
-merged_df$initialindex <- row.names(merged_df)
+head(merged_df)
+merged_df <- merged_df %>% select(predicted, actual)
+merged_df$actual <- as.numeric(merged_df$actual)
 row.names(merged_df) <- NULL
 
 # Plot predicted vs. actual 
 colors <- c("actual" = "red", "predicted" = "blue")
 plot_xgb <- ggplot(data = merged_df, aes(x = as.numeric(row.names(merged_df)))) +
-  geom_point(aes(y = xgb_pred_test, color = 'predicted')) +
-  geom_point(aes(y = DemRepRatio, color = 'actual')) +
+  geom_point(aes(y = predicted, color = 'predicted')) +
+  geom_point(aes(y = actual, color = 'actual')) +
   ggtitle('Actual vs. predicted values') + 
   scale_color_manual(values = colors) +
   labs(x = 'Index', y = 'DemRepRatio')

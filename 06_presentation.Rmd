@@ -11,8 +11,14 @@ logo: ./Pictures_presentation/logo.png
 ---
 
 ```{r setup, include=FALSE}
+library(data.table)
 knitr::opts_chunk$set(echo = FALSE)
+
+# Load some files
 ols.coefficients <- readRDS(file = "Pictures_presentation/OLSOutput.rds")
+performance_metrics <- fread('models/performance_metrics.csv')
+map <- readRDS(file = "Pictures_presentation/MapComplete.rds")
+
 ```
 
 ## Agenda
@@ -199,10 +205,16 @@ ols.coefficients
 ## Train Test
 
 Show table here with R^2 etc. of train and test samples for both methodologies
+```{r mysize=TRUE, size='tiny'}
+performance_metrics
+```
 
 ## Results with XGBoost prediction
 
-Show map with final prediction outcome by XGBoost estimator 
+Show map with final prediction outcome by XGBoost estimator
+```{r}
+map
+```
 
 ## Sources of Data
 
