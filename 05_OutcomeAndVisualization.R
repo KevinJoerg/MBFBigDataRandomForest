@@ -1,6 +1,6 @@
 library(data.table)
 library(leaflet)
-library(raster)
+library(mapview)
 
 # set wd to where the source file is
 # make sure you have the datafiles in a /data/ folder
@@ -25,7 +25,10 @@ DemRepRatiosOLSForecast <- fread('models/OLS_DemRepRatiosForecast.csv')
 
 # XGBOOST
 
-# Data to evaluate XGB forecasts
+# Data to evaluate XGB forecasts out of sample
+DemRepRatiosXGBEvaluateInSample <- fread('models/xgb_pred_train.csv')
+
+# Data to evaluate XGB forecasts out of sample
 DemRepRatiosXGBEvaluate <- fread('models/xgb_pred_test.csv')
 
 # XGB Forecast
@@ -60,7 +63,8 @@ r2_adjusted_ols <- adjusted_R2(DemRepRatiosOLSEvaluate$DemRepRatio, DemRepRatios
 rmse_ols <- rmse(DemRepRatiosOLSEvaluate$DemRepRatio, DemRepRatiosOLSEvaluate$forecast)
 
 # XGB in sample
-# r2_xgb <- R2(DemRepRatiosXGBEvaluate$)
+# r2_xgb_in_sample <- R2(DemRepRatiosXGBEvaluateInSample$)
+
 
 # Visualization ****************************************************************
 
@@ -107,6 +111,7 @@ mapshot(m,'plots/MapAvailableCountyVotingOutcome.html', file='plots/MapAvailable
 
 # Map of only OLS forecasted counties ******************************************
 names(DemRepRatiosOLSForecast) <- c('state', 'county', 'DemRepRatio')
+DemRepRatiosOLSForecast$DemRepRatio <- as.numeric(DemRepRatiosOLSForecast$DemRepRatio)
 m <- plotUSVotingData(DemRepRatiosOLSForecast)
 
 # Show map
@@ -114,6 +119,40 @@ m
 
 # Export
 mapshot(m,'plots/OLSForecast.html', file='plots/OLSForecast.png')
+
+# Map of only XGB forecasted counties ******************************************
+#names(DemRepRatiosOLSForecast) <- c('state', 'county', 'DemRepRatio')
+# DemRepRatiosXGBForecast$DemRepRatio <- as.numeric(DemRepRatiosXGBForecast$DemRepRatio)
+m <- plotUSVotingData(DemRepRatiosXGBForecast)
+
+# Show map
+m
+
+# Export
+mapshot(m,'plots/XGBForecast.html', file='plots/XGBForecast.png')
+
+# Map of observed and annotated forecasted counties ****************************
+
+# Combine observed with forecasts
+DemRepRatiosFullMap <- rbind(DemRepRatiosOLSForecast[,c('state', 'county', 'DemRepRatio')], DemRepRatiosAvailable)
+
+m <- plotUSVotingData(DemRepRatiosFullMap)
+
+# Show map
+m
+
+# Export
+mapshot(m,'plots/FullMap.html', file='plots/FullMap.png')
+
+
+
+
+
+
+
+
+
+
 
 
 
