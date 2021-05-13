@@ -12,7 +12,7 @@ This repository is part of a project from the course "Big Data Analytics" at the
 
 ## How to execute this code
 
-1. Download the dataset from: 
+1. Download the datasets from: 
 
 * US Used cars dataset: https://www.kaggle.com/ananaymital/us-used-cars-dataset
 * MIT Election Lab Voting Data: https://github.com/MEDSL/2020-elections-official
