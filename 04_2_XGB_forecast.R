@@ -224,10 +224,6 @@ results_xgb_withStateDemRatio
 rm(list=setdiff(ls(), c("xgb_withStateDemRatio", 'xgb_withStateDemRatio', 'params_xgb_withStateDemRatio', 'results_xgb_withStateDemRatio', 'carListingsClean.forecast', 'xgb_best_iteration_withStateDemRatio')))
 gc()
 
-copy <- carListingsClean.forecast #
-
-carListingsClean.forecast <- copy #
-
 # prepare dataframe before prediction
 carListingsClean.forecast.dt <- data.table(data.frame(carListingsClean.forecast))
 index <- as.numeric(seq(1:nrow(carListingsClean.forecast.dt)))
@@ -236,22 +232,19 @@ county <- as.character(carListingsClean.forecast.dt$county)
 df <- data.frame(cbind(index, state, county))
 df$index <- as.numeric(index)
 
+
 # add and delete variables in ffdf
 carListingsClean.forecast$index <- as.ff(index)
 carListingsClean.forecast$county <- NULL
 carListingsClean.forecast$state <- NULL
 carListingsClean.forecast$DemRepRatio <- NULL
 
-
-# create a sparse matrix
+# create a sparse matrix, which we need as input for prediction
 # note that we keep track of the index with "index_new" as the model.matrix omits factors for which there are no observations
 # this results in a smaller dataframe
 matrix_forecast <- model.matrix(~.-1, data = carListingsClean.forecast)
 index_new <- matrix_forecast[,'index']
 matrix_forecast <- matrix_forecast[,-ncol(matrix_forecast)] 
-
-# check if we get equal length
-identical(nrow(matrix_forecast), length(index_new))
 
 # predict values
 forecast <- data.table(predict(xgb_withStateDemRatio, matrix_forecast))
@@ -264,6 +257,23 @@ identical(nrow(matrix_forecast), length(index_new), nrow(forecast))
 xgb_forecast <- inner_join(forecast, df, by = 'index')
 colnames(xgb_forecast) = c('forecast', 'index', 'state', 'county')
 
+# drop index, as we don't need it anymore
+xgb_forecast$index <- NULL
+
+# count number of forecast listings per state
+forecast.count <- xgb_forecast %>%
+  group_by(state, county) %>%
+  summarise(obs_per_forecast = length(forecast)) %>%
+  ungroup
+
+# Average the forecast values on a state and county level
+xgb_forecast <- xgb_forecast %>%
+  group_by(state, county) %>%
+  summarise(forecast = mean(forecast, na.rm = TRUE)) %>%
+  ungroup
+
+# Only keep forecasts that are based on at least 100 observations
+xgb_forecast <- xgb_forecast[forecast.count$obs_per_forecast > 100, ]
 
 ### SAVE ###--------------------------------------------
 

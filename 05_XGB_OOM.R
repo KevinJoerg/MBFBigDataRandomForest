@@ -60,7 +60,7 @@ carListingsClean$StateDemRepRatio <- NULL
 carListingsClean <- na.omit(carListingsClean)
 
 # only for testing purposes
-carListingsClean <- carListingsClean[1:10000,]
+carListingsClean <- carListingsClean[1:1000,]
 
 
 ### SPLIT TRAINING AND TESTING DATASET ### ----------------------------------------------
