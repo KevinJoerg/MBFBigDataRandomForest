@@ -246,7 +246,7 @@ params_xgb <- list(booster = 'dart',
 # using cross-validation to find optimal nrounds parameter
 xgbcv <- xgb.cv(params = params_xgb,
               data = dtrain, 
-              nrounds = 1000L, 
+              nrounds = 10L, 
               nfold = 5,
               showsd = T, # whether to show standard deviation of cv
               stratified = F, 
@@ -324,16 +324,17 @@ variable3 = xgb_importance$Feature[3]
 
 # merge dataframes
 merged_df <- data.frame(cbind(xgb_pred_test, test_target)) #by 0 merges based on index
-colnames(merged_df) <- c('xgb_pred_test', 'DemRepRatio')
 merged_df <- merged_df[order(merged_df$DemRepRatio),]
-merged_df$initialindex <- row.names(merged_df)
+head(merged_df)
+merged_df <- merged_df %>% select(predicted, actual)
+merged_df$actual <- as.numeric(merged_df$actual)
 row.names(merged_df) <- NULL
 
 # Plot predicted vs. actual 
 colors <- c("actual" = "red", "predicted" = "blue")
 plot_xgb <- ggplot(data = merged_df, aes(x = as.numeric(row.names(merged_df)))) +
-  geom_point(aes(y = xgb_pred_test, color = 'predicted')) +
-  geom_point(aes(y = DemRepRatio, color = 'actual')) +
+  geom_point(aes(y = predicted, color = 'predicted')) +
+  geom_point(aes(y = actual, color = 'actual')) +
   ggtitle('Actual vs. predicted values') + 
   scale_color_manual(values = colors) +
   labs(x = 'Index', y = 'DemRepRatio')
