@@ -8,6 +8,7 @@ Thus, we cannot assess the predictive power of the algorithm and need to wait fo
 However, we therefore include the DemRepRatio on a state-level and use is as training for the algorithm and forecast. 
 "
 
+# if you're using a MAC OS X
 # first install libomp by using the termin and the following command: 
 # brew install libomp
 
