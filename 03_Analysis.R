@@ -76,10 +76,12 @@ stateTrain.test <- stateTrain[-train_ind]
 # Regression formula
 f <- 'DemRepRatio ~ .'
 
-# Standard 
+# Standard cpu regression
 tic()
 ols <- lm(f, carListings.df.withCounty.train)
 toc()
+
+# GPU regression, needs gputools installed with CUDA
 tic()
 olsgpu <- gpuLm(f, carListings.df.withCounty.train)
 toc()
