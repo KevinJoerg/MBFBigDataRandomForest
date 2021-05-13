@@ -171,7 +171,7 @@ $\frac{democratic\:votes}{democratic\:votes + republican\:votes}$
 
 <center>
 
-![](./plots/MapAvailableCountyVotingOutcome.png){width=92%}
+![](./plots/MapAvailableCountyVotingOutcomeHiRes.png){width=92%}
 </center>
 
 
@@ -200,7 +200,7 @@ ols.coefficients
 
 ## XGBoost parameter importance plot
 <center>
-![](./plots/plot_xgb_importance.png){width=60%}
+![](./plots/plot_xgb_importance.png){width=40%}
 </center>
 ## Train Test
 
@@ -238,7 +238,7 @@ Show map with final prediction outcome by linear estimator
 
 <center>
 
-![](./plots/plot_xgb.png){width=60%}
+![](./plots/plot_xgb.png){width=50%}
 </center>
 
 ## XGBoost number of trees optimization
