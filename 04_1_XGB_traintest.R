@@ -59,7 +59,7 @@ load.ffdf(dir='./ffdfClean2')
 carListingsClean <- data.frame(carListingsClean)
 
 # for performance reasons
-#carListingsClean <- carListingsClean[1:1000,]
+carListingsClean <- carListingsClean[1:1000,]
 
 # delete columns we don't need for the regression
 carListingsClean$StateDemRepRatio <- NULL
@@ -90,11 +90,10 @@ train_target = as.matrix((train[,c('DemRepRatio', 'county', 'state')]))
 test_target = as.matrix((test[,c('DemRepRatio', 'county', 'state')]))
 
 # omit variables we don't need
-files = c(train, test)
-for (i in files) {
-  files$county <- NULL
-  files$state <- NULL
-}
+train$county <- NULL
+test$county <- NULL
+train$state <- NULL
+test$state <- NULL
 
 # convert categorical factor into dummy variables using one-hot encoding
 sparse_matrix_train <- model.matrix((DemRepRatio)~.-1, data = train)
@@ -107,6 +106,9 @@ dtest <- xgb.DMatrix(data = sparse_matrix_test, label = test_target[, 'DemRepRat
 rm(train_ind, carListingsClean, i, files, smp_size)
 gc()
 
+colnames(sparse_matrix_train)
+colnames(sparse_matrix_test)
+
 
 ### MODEL 1: FIND OPTIMAL PARAMETERS - WITH CARET ###  -----------------------------
 "Note: This method uses a lot of memory, thus we do hyperparameter tuning on a subsample
@@ -117,7 +119,7 @@ n = 0.05
 smp_size <- floor(n * nrow(sparse_matrix_train)) 
 train_ind <- base::sample(seq_len(nrow(sparse_matrix_train)), size = smp_size)
 sparse_matrix_train_subsample <- sparse_matrix_train[train_ind,]
-train_target_subsample <- train_target[train_ind,]
+train_target_subsample <- as.numeric(train_target[train_ind, 'DemRepRatio'])
 
 library(caret)
 library(doParallel)
@@ -139,20 +141,20 @@ xgb_trcontrol <- caret::trainControl(
 
 
 xgbGrid <- base::expand.grid(nrounds = 100L, 
-                             max_depth = c(4, 6, 8, 10),
-                             colsample_bytree = c(0.3, 0.6, 0.9),
-                             eta = c(0.1, 0.5, 1),
-                             gamma= c(0, 1, 4),
+                             max_depth = c(4, 6, 8),
+                             colsample_bytree = c(0.1, 0.3, 0.5),
+                             eta = c(0.05, 0.1, 0.5),
+                             gamma= 1,
                              min_child_weight = 1,
                              subsample = 1
 )
 
 # # Just for testing purposes
 xgbGrid.simple <- base::expand.grid(nrounds = 100L,
-                                    max_depth = c(4, 6, 10, 15),
-                                    colsample_bytree = c(0.3, 0.6, 0.9),
+                                    max_depth = c(4, 6, 8),
+                                    colsample_bytree = c(0.1, 0.3, 0.5),
                                     eta = 0.1,
-                                    gamma= 0,
+                                    gamma= 1,
                                     min_child_weight = 1,
                                     subsample = 1
 )
@@ -160,20 +162,17 @@ xgbGrid.simple <- base::expand.grid(nrounds = 100L,
 set.seed(0)
 
 xgb_model = caret::train(
-  sparse_matrix_train_subsample, as.double(train_target_subsample[, 'DemRepRatio']),
+  sparse_matrix_train_subsample, as.double(train_target_subsample),
   trControl = xgb_trcontrol,
   tuneGrid = xgbGrid,
   method = "xgbTree",
   tree_method = 'hist',
   objective = "reg:squarederror", 
   tuneLength = 100, 
-  model = FALSE, 
-  returnData = FALSE
 )
 
 
 stopCluster(cl)
-toc()
 
 ### MODEL 1: FIND OPTIMAL PARAMETERS - WITH MLR ###  -----------------------------
 "Note: This worked on a MacBook. However, it still consumes a lot of RAM and computing time"
@@ -268,7 +267,7 @@ params_xgb <- list(booster = 'dart',
 # using cross-validation to find optimal nrounds parameter
 xgbcv <- xgb.cv(params = params_xgb,
                 data = dtrain, 
-                nrounds = 1000L, 
+                nrounds = 10L, 
                 nfold = 5,
                 showsd = T, # whether to show standard deviation of cv
                 stratified = F, 
@@ -307,6 +306,20 @@ colnames(xgb_pred_train) <- c('predicted', 'actual', 'county', 'state')
 xgb_pred_test <- data.table(predict(xgb, dtest))
 xgb_pred_test <- cbind(xgb_pred_test, test_target)
 colnames(xgb_pred_test) <- c('predicted', 'actual', 'county', 'state')
+
+# metrics for train
+act <- as.numeric(train_target[,'DemRepRatio'])
+pred <- xgb_pred_train$predicted
+rmse_xgb_train <- sqrt(mean((pred - act)^2))
+r2_xgb_train <- 1 - ( sum((act-pred)^2) / sum((act-mean(act))^2) )
+adj_r2_xgb_train <- 1 - ((1 - r2_xgb_train) * (nrow(act) - 1)) / (nrow(act) - ncol(act) - 1)
+
+# metrics for test
+act <- as.numeric(test_target[,'DemRepRatio'])
+pred <- xgb_pred_test$predicted
+rmse_xgb_test <- sqrt(mean((pred - act)^2))
+r2_xgb_test <- 1 - ( sum((act-pred)^2) / sum((act-mean(act))^2) )
+adj_r2_xgb_test <- 1 - ((1 - r2_xgb_train) * (nrow(act) - 1)) / (nrow(act) - ncol(act) - 1)
 
 
 ### PLOTS --------------------------------------------------
