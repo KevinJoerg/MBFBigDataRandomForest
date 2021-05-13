@@ -108,55 +108,15 @@ rm(train_ind, carListingsClean, i, files, smp_size)
 gc()
 
 
-
 ### MODEL 1: FIND OPTIMAL PARAMETERS - WITH CARET ###  -----------------------------
-# library(caret)
-# library(doParallel)
-# library(rBayesianOptimization)
-# 
-# cv_folds <- rBayesianOptimization::KFold(sparse_matrix_train, nfolds = 5)
-# xgb.cv.bayes <- function(max.depth, min_child_weight, subsample, colsample_bytree, gamma){
-#   cv <- xgb.cv(params = list(booster = 'xgbtree', eta = 0.05,
-#                              max_depth = max.depth,
-#                              min_child_weight = min_child_weight,
-#                              subsample = subsample,
-#                              colsample_bytree = colsample_bytree,
-#                              gamma = gamma,
-#                              objective = 'reg:squarederror',
-#                              eval_metric = 'rmse'),
-#                data = sparse_matrix_train,
-#                label = train_target[, 'DemRepRatio'],
-#                nround = 500, folds = cv_folds, prediction = TRUE,
-#                showsd = TRUE, early.stop.round = 5, maximize = TRUE,
-#                verbose = 0
-#   )
-#   list(Score = cv$dt,
-#        Pred = cv$pred)
-# }
-# 
-# xgb.bayes.model <- BayesianOptimization(
-#   xgb.cv.bayes,
-#   bounds = list(max.depth = c(2L, 12L),
-#                 min_child_weight = c(1L, 10L),
-#                 subsample = c(0.5, 1),
-#                 colsample_bytree = c(0.1, 0.4),
-#                 gamma = c(0, 10)
-#   ),
-#   init_grid_dt = NULL,
-#   init_points = 10,  # number of random points to start search
-#   n_iter = 20, # number of iterations after initial random points are set
-#   acq = 'ucb', kappa = 2.576, eps = 0.0, verbose = TRUE
-# )
-
-### MODEL 1: FIND OPTIMAL PARAMETERS - WITH CARET ###  -----------------------------
-"Note: This only worked for MacBookPro"
+"Note: This worked for MacBookPro and Windows"
 
 library(caret)
 library(doParallel)
 
-cl <- makePSOCKcluster(detectCores())
+cl <- parallel::makePSOCKcluster(detectCores())
 parallel::clusterEvalQ(cl, library(foreach))
-parallel::registerDoParallel(cl)
+doParallel::registerDoParallel(cl)
 
 xgb_trcontrol <- caret::trainControl(
   method = "cv",
@@ -176,12 +136,13 @@ xgbGrid <- base::expand.grid(nrounds = 100L,
                        subsample = c(0.2, 0.5, 1)
 )
 
-xgbGrid.simple <- base::expand.grid(nrounds = 100L, 
+# # Just for testing purposes
+xgbGrid.simple <- base::expand.grid(nrounds = 100L,
                              max_depth = c(4, 6, 10, 15),
                              colsample_bytree = seq(0.3, 0.9, length.out = 5),
                              eta = 0.1,
                              gamma= 0,
-                             min_child_weight = 1, 
+                             min_child_weight = 1,
                              subsample = 1
 )
 
@@ -190,19 +151,18 @@ set.seed(0)
 xgb_model = caret::train(
   sparse_matrix_train, as.double(train_target[, 'DemRepRatio']),
   trControl = xgb_trcontrol,
-  tuneGrid = xgbGrid,
+  tuneGrid = xgbGrid.simple,
   method = "xgbTree",
   tree_method = 'hist',
-  objective = "reg:squarederror", 
-  verbose = TRUE
+  objective = "reg:squarederror"
 )
 
 
 stopCluster(cl)
-
+toc()
 
 ### MODEL 1: FIND OPTIMAL PARAMETERS - WITH MLR ###  -----------------------------
-"Note: This worked on a MacBook Pro"
+"Note: This worked on a MacBook"
 
 set.seed(123)
 
