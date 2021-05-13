@@ -16,7 +16,7 @@ knitr::opts_chunk$set(echo = FALSE)
 
 # Load some files
 ols.coefficients <- readRDS(file = "Pictures_presentation/OLSOutput.rds")
-performance_metrics <- fread('models/performance_metrics.csv')
+performance_metrics <- readRDS(file = 'Pictures_presentation/performance_metrics.rds')
 map <- readRDS(file = "Pictures_presentation/MapComplete.rds")
 
 ```
