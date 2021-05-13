@@ -8,7 +8,7 @@
 
 ## About
 
-This repository is part of a project from the course "Big Data Analytics" at the University of St. Gallen. 
+This repository is part of a project from the course "Big Data Analytics" at the University of St. Gallen which was held in the fall semester 2021 as part of the Master in Banking & Finance curriculum. 
 
 ## How to execute this code
 
