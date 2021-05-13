@@ -8,7 +8,7 @@ rm(list = ls())
 # make sure you have the datafiles in a /data/ folder
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 
-# Load the intermediate data ***************************************************
+### Load the intermediate data -------------------------------------------------
 
 # OLS
 
@@ -35,7 +35,7 @@ DemRepRatiosXGBEvaluate <- fread('models/xgb_pred_test.csv')
 # XGB Forecast
 DemRepRatiosXGBForecast <- fread('models/xgb_forecast.csv')
 
-# Get performance metrics of OLS and XGB ***************************************
+### Get performance metrics of OLS and XGB -------------------------------------
 
 # Data of evaluate set
 n_observations <- 455
@@ -87,7 +87,7 @@ row.names(performance_metrics) <- c('R2 in Sample', 'Adjusted R2 in Sample', 'RM
 # Save for presentation
 saveRDS(performance_metrics, 'Pictures_presentation/performance_metrics.rds')
 
-# Visualization ****************************************************************
+### Visualization --------------------------------------------------------------
 
 plotUSVotingData <- function(dataset){
   # Get USA polygon data
@@ -121,7 +121,7 @@ plotUSVotingData <- function(dataset){
 return(map)
 }
 
-# First a map of only the observed Dem Rep Ratios ******************************
+#### First a map of only the observed Dem Rep Ratios ---------------------------
 m <- plotUSVotingData(DemRepRatiosAvailable)
 
 # Show map
@@ -130,7 +130,7 @@ m
 # Export
 mapshot(m,'plots/MapAvailableCountyVotingOutcome.html', file='plots/MapAvailableCountyVotingOutcome.png')
 
-# Map of only OLS forecasted counties ******************************************
+#### Map of only OLS forecasted counties ---------------------------------------
 names(DemRepRatiosOLSForecast) <- c('state', 'county', 'DemRepRatio')
 DemRepRatiosOLSForecast$DemRepRatio <- as.numeric(DemRepRatiosOLSForecast$DemRepRatio)
 m <- plotUSVotingData(DemRepRatiosOLSForecast)
@@ -141,7 +141,7 @@ m
 # Export
 mapshot(m,'plots/OLSForecast.html', file='plots/OLSForecast.png')
 
-# Map of only XGB forecasted counties ******************************************
+#### Map of only XGB forecasted counties ---------------------------------------
 names(DemRepRatiosXGBForecast) <- c('state', 'county', 'DemRepRatio')
 DemRepRatiosXGBForecast$DemRepRatio <- as.numeric(DemRepRatiosXGBForecast$DemRepRatio)
 m <- plotUSVotingData(DemRepRatiosXGBForecast)
@@ -152,7 +152,7 @@ m
 # Export
 mapshot(m,'plots/XGBForecast.html', file='plots/XGBForecast.png')
 
-# Map of observed and annotated forecasted counties ****************************
+#### Map of observed and forecasted counties -----------------------------------
 names(DemRepRatiosXGBForecast) <- c('state', 'county', 'DemRepRatio')
 
 # Combine observed with forecasts
