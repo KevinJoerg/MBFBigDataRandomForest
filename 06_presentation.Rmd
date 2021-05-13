@@ -9,6 +9,24 @@ output:
 logo: ./Pictures_presentation/logo.png
 
 ---
+```{css, echo = FALSE}
+.remark-slide-content {
+  font-size: 28px;
+  padding: 20px 80px 20px 80px;
+}
+.remark-code, .remark-inline-code {
+  background: #f0f0f0;
+}
+.remark-code {
+  font-size: 24px;
+}
+.huge .remark-code { /*Change made here*/
+  font-size: 200% !important;
+}
+.tiny .remark-code { /*Change made here*/
+  font-size: 50% !important;
+}
+```
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE)
@@ -187,12 +205,10 @@ Gradient boosting tree-technique using parallelization of computation by default
 
 
 ## Linear regression coefficients and robustness
-* Tested for heteroskedasticity and mulitcollinearity
-<font size="-1">
-```{r}
+
+```{r mysize=TRUE, size='tiny'}
 ols.coefficients
 ```
-</font>
 
 ## XGBoost parameter importance plot
 <center>
