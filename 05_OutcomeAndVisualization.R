@@ -128,7 +128,7 @@ m <- plotUSVotingData(DemRepRatiosAvailable)
 m
 
 # Export
-mapshot(m,'plots/MapAvailableCountyVotingOutcome.html', file='plots/MapAvailableCountyVotingOutcome.png')
+# mapshot(m,'plots/MapAvailableCountyVotingOutcome.html', file='plots/MapAvailableCountyVotingOutcome.png')
 
 #### Map of only OLS forecasted counties ---------------------------------------
 names(DemRepRatiosOLSForecast) <- c('state', 'county', 'DemRepRatio')
@@ -139,7 +139,7 @@ m <- plotUSVotingData(DemRepRatiosOLSForecast)
 m
 
 # Export
-mapshot(m,'plots/OLSForecast.html', file='plots/OLSForecast.png')
+# mapshot(m,'plots/OLSForecast.html', file='plots/OLSForecast.png')
 
 #### Map of only XGB forecasted counties ---------------------------------------
 names(DemRepRatiosXGBForecast) <- c('state', 'county', 'DemRepRatio')
@@ -150,7 +150,7 @@ m <- plotUSVotingData(DemRepRatiosXGBForecast)
 m
 
 # Export
-mapshot(m,'plots/XGBForecast.html', file='plots/XGBForecast.png')
+# mapshot(m,'plots/XGBForecast.html', file='plots/XGBForecast.png')
 
 #### Map of observed and forecasted counties -----------------------------------
 names(DemRepRatiosXGBForecast) <- c('state', 'county', 'DemRepRatio')
@@ -167,7 +167,7 @@ m_full
 saveRDS(m_full, file='Pictures_presentation/MapComplete.rds')
 
 # Export
-mapshot(m,'plots/FullMap.html', file='plots/FullMap.png')
+# mapshot(m,'plots/FullMap.html', file='plots/FullMap.png')
 
 
 
