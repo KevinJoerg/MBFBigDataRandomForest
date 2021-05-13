@@ -2,8 +2,8 @@
 
 ## Authors
 * Tim Graf
-* Kevin Jörg
-* Moritz Dänliker
+* Kevin Joerg
+* Moritz Daendliker
 
 
 ## About
