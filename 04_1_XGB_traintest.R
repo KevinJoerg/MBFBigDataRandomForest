@@ -4,7 +4,7 @@
 "Note:
 
 This script may not work on computers with little RAM, as the hyperparameter tuning and xgboost use up alot of RAM. 
-If it crashes please try the out-of-memory approach stated in 05_XGB_OOM
+If it crashes please try the out-of-memory approach stated in 04_03_XGB_OOM
 
 * Xgboost manages only numeric vectors. Hence we convert all factors to spare matrix with binary format
 
