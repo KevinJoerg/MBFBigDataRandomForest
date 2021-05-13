@@ -257,7 +257,7 @@ params_xgb <- list(booster = 'dart',
 # using cross-validation to find optimal nrounds parameter
 xgbcv <- xgb.cv(params = params_xgb,
                 data = dtrain, 
-                nrounds = 100L, 
+                nrounds = 150L, 
                 nfold = 5,
                 showsd = T, # whether to show standard deviation of cv
                 stratified = F, 

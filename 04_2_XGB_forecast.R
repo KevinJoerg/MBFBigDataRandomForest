@@ -235,7 +235,7 @@ params_xgb_withStateDemRatio <- list(booster = 'dart',
 # using cross-validation to find optimal nrounds parameter
 xgbcv <- xgb.cv(params = params_xgb_withStateDemRatio,
                 data = dtrain, 
-                nrounds = 10L, 
+                nrounds = 150, 
                 nfold = 5,
                 showsd = T, # whether to show standard deviation of cv
                 stratified = F, 
@@ -262,7 +262,6 @@ xgb_withStateDemRatio <- xgb.train(params = params_xgb_withStateDemRatio,
                  maximize = F, 
                  eval_metric = "rmse", 
                  tree_method = 'hist') # this accelerates the process 
-
 
 
 ### TESTING THE MODEL ###--------------------------------------------
