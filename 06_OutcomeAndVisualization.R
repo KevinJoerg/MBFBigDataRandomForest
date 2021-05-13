@@ -72,12 +72,12 @@ plotUSVotingData <- function(dataset){
   USA@data$NAME_2 <- as.character(lapply(USA@data$NAME_2, tolower))
   
   # Append data
-  temp <- merge(USA, DemRepRatiosAvailable,
+  temp <- merge(USA, dataset,
                 by.x = c("NAME_1", "NAME_2"), by.y = c("state", "county"),
                 all.x = TRUE)
   
   # Create a color range for the markers
-  pal.quantile <- colorQuantile("RdYlBu", domain =  c(0.1,0.9), reverse = FALSE, n = 10)
+  pal.quantile <- colorQuantile("RdYlBu", domain =  c(0,1), reverse = FALSE, n = 10)
   mypal <- pal.quantile(temp$DemRepRatio)
   
   # Create the leaflet map
@@ -88,7 +88,7 @@ plotUSVotingData <- function(dataset){
                 fillColor = mypal,
                 popup = paste("Region: ", temp$NAME_2, "<br>",
                               "Value: ", round(temp$DemRepRatio,3), "<br>")) %>%
-    addLegend(position = "bottomleft", pal = pal.quantile, values = c(0.1,0.9),
+    addLegend(position = "bottomleft", pal = pal.quantile, values = c(0,1),
               title = "Value",
               opacity = 1)
 
@@ -106,8 +106,8 @@ m
 mapshot(m,'plots/MapAvailableCountyVotingOutcome.html', file='plots/MapAvailableCountyVotingOutcome.png')
 
 # Map of only OLS forecasted counties ******************************************
-
-m <- plotUSVotingData(DemRepRatiosAvailable)
+names(DemRepRatiosOLSForecast) <- c('state', 'county', 'DemRepRatio')
+m <- plotUSVotingData(DemRepRatiosOLSForecast)
 
 # Show map
 m
