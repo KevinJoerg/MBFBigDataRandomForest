@@ -164,7 +164,7 @@ $\frac{democratic\:votes}{democratic\:votes + republican\:votes}$
 
 <center>
 
-![](./plots/MapAvailableCountyVotingOutcome.png){width=92%}
+![](./plots/MapAvailableCountyVotingOutcomeHiRes.png){width=92%}
 </center>
 
 
