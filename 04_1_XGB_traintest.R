@@ -59,7 +59,7 @@ load.ffdf(dir='./ffdfClean2')
 carListingsClean <- data.frame(carListingsClean)
 
 # for performance reasons
-carListingsClean <- carListingsClean[1:1000,]
+#carListingsClean <- carListingsClean[1:1000,]
 
 # delete columns we don't need for the regression
 carListingsClean$StateDemRepRatio <- NULL
@@ -114,7 +114,8 @@ gc()
 library(caret)
 library(doParallel)
 
-cl <- parallel::makePSOCKcluster(detectCores())
+stopCluster()
+cl <- parallel::makePSOCKcluster(detectCores()-1)
 parallel::clusterEvalQ(cl, library(foreach))
 doParallel::registerDoParallel(cl)
 
@@ -124,26 +125,27 @@ xgb_trcontrol <- caret::trainControl(
   allowParallel = TRUE,
   verboseIter = TRUE,
   returnData = FALSE,
-  search = 'random'
+  search = 'random', 
+  trim = TRUE
 )
 
 xgbGrid <- base::expand.grid(nrounds = 100L, 
-                       max_depth = c(2, 4, 6, 8, 10),
-                       colsample_bytree = seq(0.3, 0.9, length.out = 5),
-                       eta = c(0.05, 0.1, 0.5, 1),
-                       gamma= c(0, 1, 4, 8),
-                       min_child_weight = c(0, 1, 2),
-                       subsample = c(0.2, 0.5, 1)
+                             max_depth = c(4, 6, 8, 10),
+                             colsample_bytree = c(0.3, 0.6, 0.9),
+                             eta = c(0.1, 0.5, 1),
+                             gamma= c(0, 1, 4),
+                             min_child_weight = 1,
+                             subsample = 1
 )
 
 # # Just for testing purposes
 xgbGrid.simple <- base::expand.grid(nrounds = 100L,
-                             max_depth = c(4, 6, 10, 15),
-                             colsample_bytree = seq(0.3, 0.9, length.out = 5),
-                             eta = 0.1,
-                             gamma= 0,
-                             min_child_weight = 1,
-                             subsample = 1
+                                    max_depth = c(4, 6, 10, 15),
+                                    colsample_bytree = c(0.3, 0.6, 0.9),
+                                    eta = 0.1,
+                                    gamma= 0,
+                                    min_child_weight = 1,
+                                    subsample = 1
 )
 
 set.seed(0)
@@ -151,10 +153,13 @@ set.seed(0)
 xgb_model = caret::train(
   sparse_matrix_train, as.double(train_target[, 'DemRepRatio']),
   trControl = xgb_trcontrol,
-  tuneGrid = xgbGrid.simple,
+  #tuneGrid = xgbGrid.simple,
   method = "xgbTree",
   tree_method = 'hist',
-  objective = "reg:squarederror"
+  objective = "reg:squarederror", 
+  tuneLength = 15, 
+  model = FALSE, 
+  returnData = FALSE
 )
 
 
@@ -241,20 +246,20 @@ params_xgb <- list(booster = 'dart',
                    max_depth = xgb_model$bestTune$max_depth, # max depth of trees, the more deep the more complex and overfitting
                    min_child_weight = xgb_model$bestTune$min_child_weight, # min number of instances per child node, blocks potential feature interaction and thus overfitting
                    colsample_bytree = xgb_model$bestTune$colsample_bytree # number of variables per tree, typically between 0.5 - 0.9
-                   )
-  
+)
+
 # using cross-validation to find optimal nrounds parameter
 xgbcv <- xgb.cv(params = params_xgb,
-              data = dtrain, 
-              nrounds = 10L, 
-              nfold = 5,
-              showsd = T, # whether to show standard deviation of cv
-              stratified = F, 
-              print_every_n = 1, 
-              early_stopping_rounds = 50, # stop if we don't see much improvement
-              maximize = F, # should the metric be maximized?
-              verbose = 2, 
-              tree_method = 'hist')
+                data = dtrain, 
+                nrounds = 1000L, 
+                nfold = 5,
+                showsd = T, # whether to show standard deviation of cv
+                stratified = F, 
+                print_every_n = 1, 
+                early_stopping_rounds = 50, # stop if we don't see much improvement
+                maximize = F, # should the metric be maximized?
+                verbose = 2, 
+                tree_method = 'hist')
 
 # Result of best iteration
 xgb_best_iteration <- xgbcv$best_iteration
@@ -267,12 +272,12 @@ Rather it does the parallelization WITHIN a single tree by using openMP to creat
 # training with optimized nrounds and params
 # best is to let out the num threads, as xgboost takes all by default
 xgb <- xgb.train(params = params_xgb, 
-                  data = dtrain, 
-                  nrounds = xgb_best_iteration, 
-                  watchlist = list(test = dtest, train = dtrain), 
-                  maximize = F, 
-                  eval_metric = "rmse", 
-                  tree_method = 'hist') # this accelerates the process 
+                 data = dtrain, 
+                 nrounds = xgb_best_iteration, 
+                 watchlist = list(test = dtest, train = dtrain), 
+                 maximize = F, 
+                 eval_metric = "rmse", 
+                 tree_method = 'hist') # this accelerates the process 
 
 
 ### TESTING THE MODEL ###--------------------------------------------
