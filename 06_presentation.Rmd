@@ -211,10 +211,11 @@ performance_metrics
 
 ## Results with XGBoost prediction
 
-Show map with final prediction outcome by XGBoost estimator
+<center>
 ```{r}
 map
 ```
+</center>
 
 ## Sources of Data
 
@@ -229,8 +230,9 @@ https://www.kaggle.com/ananaymital/us-used-cars-dataset
 
 ## Results with linear regression
 
-Show map with final prediction outcome by linear estimator 
+<center>
 
+</center>
 
 ## Actual vs. predicted values (Linear)
 
