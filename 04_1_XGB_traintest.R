@@ -109,10 +109,11 @@ gc()
 
 
 ### MODEL 1: FIND OPTIMAL PARAMETERS - WITH CARET ###  -----------------------------
-"Note: This method uses a lot of memory, thus we do hyperparameter tuning on a subsample"
+"Note: This method uses a lot of memory, thus we do hyperparameter tuning on a subsample
+change n to make it work on computers with less power"
 
 # make a subsample
-n = 0.01
+n = 0.05
 smp_size <- floor(n * nrow(sparse_matrix_train)) 
 train_ind <- base::sample(seq_len(nrow(sparse_matrix_train)), size = smp_size)
 sparse_matrix_train_subsample <- sparse_matrix_train[train_ind,]
