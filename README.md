@@ -6,7 +6,8 @@
 * Moritz Dänliker
 
 
-## About
+## About
+
 This repository is part of a project from the course "Big Data Analytics" at the University of St. Gallen. 
 
 ## How to execute this code
@@ -19,11 +20,15 @@ This repository is part of a project from the course "Big Data Analytics" at the
 
 2. Run code files sequentially
 
-Note: 
-* Linear regression uses GPU acceleration method. This may only work on NVIDIA GPUs which are CUDA enabled. 
-* XGBoost takes up a lot of memory. If you do not have access to a powerful computer (on-premise or cloud), you may want to go ahead with 05_XGBoost_OOM (out-of-memory)
-
 3. Check presentation for an overview on the methodology and results. 
 
-## Disclaimer
+### Note on executing this code 
+
+* Linear regression uses GPU acceleration method. This may only work on NVIDIA GPUs which are CUDA enabled. 
+* XGBoost takes up a lot of memory. If you do not have access to a powerful computer (on-premise or cloud), you may want to go ahead with 05_XGB_OOM (out-of-memory)
+* XGBoost takes a long time to compute. 
+
+
+## Disclaimer
+
 This code was used for research-purposes only. 

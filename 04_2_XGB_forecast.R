@@ -1,24 +1,16 @@
-### XGBOOST ###
+### XGBOOST forecast ###
 ### Authors: Tim Graf, Kevin Jörg, Moritz Dänliker ###
 
-"note: 
-Xgboost manages only numeric vectors. Hence we convert all factors to spare matrix with binary format
-
-For many machine learning algorithms, using correlated features is not a good idea. 
-It may sometimes make prediction less accurate, and most of the time make interpretation of the model 
-almost impossible. GLM, for instance, assumes that the features are uncorrelated.
-Fortunately, decision tree algorithms (including boosted trees) are very robust to these features. 
-Therefore we have nothing to do to manage this situation.
-
-Decision trees do not require normalization of their inputs; 
-and since XGBoost is essentially an ensemble algorithm comprised of decision trees, 
-it does not require normalization for the inputs either.
+"Note: 
+Here we train and predict the data for counties where we currently do not have any DemRepRatios observed. 
+At the time being of this paper, the data of Democrat / Republicans Ratio on a county level hasn't been published for every county in the US. 
+Thus, we cannot assess the predictive power of the algorithm and need to wait for the official results to be publish. 
+However, we therefore include the DemRepRatio on a state-level and use is as training for the algorithm and forecast. 
 "
 
 # first install libomp by using the termin and the following command: 
 # brew install libomp
 
-library(libomp)
 library(xgboost)
 library(Matrix)
 library(mlr)
@@ -32,7 +24,6 @@ library(tictoc)
 library(ff)
 library(ffbase)
 library(ffbase2)
-
 
 
 ### SETUP ### ----------------------------------------------
@@ -51,12 +42,15 @@ load.ffdf(dir='./ffdfClean2')
 
 ### DATA CLEANING ### ----------------------------------------------
 
-carListingsClean <- data.frame(carListingsClean[1:1000,])
+# we load here only data for which we don't yet observe the DemRepRatio on a county level
+carListingsClean.forecast <- carListingsClean[is.na(carListingsClean$DemRepRatio), ]
+
+# for performance reasons
+carListingsClean <- carListingsClean[1:1000,]
 
 # delete columns we don't need for the regression
 carListingsClean$county <- NULL
 carListingsClean$state <- NULL
-carListingsClean$StateDemRepRatio <- NULL
 
 # omit the NAs for XGBoost
 carListingsClean <- na.omit(carListingsClean)
@@ -89,7 +83,7 @@ sparse_matrix_test <- model.matrix((DemRepRatio)~.-1, data = test)
 dtrain <- xgb.DMatrix(data = sparse_matrix_train, label = train_target)
 dtest <- xgb.DMatrix(data = sparse_matrix_test, label = test_target)
 
-rm(data, train_ind, carListingsClean)
+rm(train_ind, carListingsClean)
 gc()
 
 
@@ -154,7 +148,7 @@ gc()
 ### MODEL 2: FIND OPTIMAL ITERATIONS ###  -----------------------------
 
 # take the parameters of mytune
-params_xgb <- list(booster = mytune$x$booster, 
+params_xgb_withStateDemRatio <- list(booster = mytune$x$booster, 
                    objective = "reg:squarederror",
                    eta=mytune$x$eta, # learning rate, usually between 0 and 1. makes the model more robust by shrinking the weights on each step
                    gamma=mytune$x$gamma, # regularization (prevents overfitting), higher means more penalty for large coef. makes the algo more conservative
@@ -164,32 +158,9 @@ params_xgb <- list(booster = mytune$x$booster,
                    colsample_bytree = mytune$x$colsample_bytree # number of variables per tree, typically between 0.5 - 0.9
                    ) 
 
-
-
-# # test tree-methods
-# # note that there exists also "gpu_hist" but this only runs on CUDA-enable GPUs by NVIDIA
-# tree_method = c('hist', 'exact')
-# xgbtree.time = list()
-# for (i in 1:length(tree_method)) {
-#   xgbtree.time[[i]] = system.time({
-#     xgbcv <- xgb.cv(params = params_xgb,
-#                     data = dtrain, 
-#                     nrounds = 10L, 
-#                     nfold = 5,
-#                     showsd = T, # whether to show standard deviation of cv
-#                     stratified = F, 
-#                     print_every_n = 1, 
-#                     early_stopping_rounds = 50, # stop if we don't see much improvement
-#                     maximize = F, # should the metric be maximized?
-#                     verbose = 2, 
-#                     tree_method = tree_method[i])
-#   })
-# }
-# xgbtree.time
-
   
 # using cross-validation to find optimal nrounds parameter
-xgbcv <- xgb.cv(params = params_xgb,
+xgbcv <- xgb.cv(params = params_xgb_withStateDemRatio,
               data = dtrain, 
               nrounds = 1000L, 
               nfold = 5,
@@ -202,19 +173,18 @@ xgbcv <- xgb.cv(params = params_xgb,
               tree_method = 'hist')
 
 # Result of best iteration
-xgb_best_iteration <- xgbcv$best_iteration
+xgb_best_iteration_withStateDemRatio <- xgbcv$best_iteration
 
 
 ### MODEL 3: RUN WITH OPTIMAL PARAMETERS ###  -----------------------------
 'Xgboost doesnt run multiple trees in parallel like you noted, you need predictions after each tree to update gradients.
-Rather it does the parallelization WITHIN a single tree my using openMP to create branches independently'
-
+Rather it does the parallelization WITHIN a single tree by using openMP to create branches independently'
 
 # training with optimized nrounds and params
 # best is to let out the num threads, as xgboost takes all by default
-xgb <- xgb.train(params = params_xgb, 
+xgb_withStateDemRatio <- xgb.train(params = params_xgb_withStateDemRatio, 
                   data = dtrain, 
-                  nrounds = xgb_best_iteration, 
+                  nrounds = xgb_best_iteration_withStateDemRatio, 
                   watchlist = list(test = dtest, train = dtrain), 
                   maximize = F, 
                   eval_metric = "rmse", 
@@ -224,8 +194,8 @@ xgb <- xgb.train(params = params_xgb,
 ### TESTING THE MODEL ###--------------------------------------------
 
 # predict
-xgb_pred_train <- predict(xgb, dtrain)
-xgb_pred_test <- predict(xgb, dtest)
+xgb_pred_train <- predict(xgb_withStateDemRatio, dtrain)
+xgb_pred_test <- predict(xgb_withStateDemRatio, dtest)
 
 # metrics for train
 rmse_xgb_train <- sqrt(mean((xgb_pred_train - train_target)^2))
@@ -240,117 +210,84 @@ adj_r2_xgb_test <- 1 - ((1 - r2_xgb_test) * (nrow(test_target) - 1)) / (nrow(tes
 # combining results
 results_xgb_train <- rbind(rmse_xgb_train, r2_xgb_train, adj_r2_xgb_train)
 results_xgb_test <- rbind(rmse_xgb_test, r2_xgb_test, adj_r2_xgb_test)
-results_xgb <- data.frame(cbind(results_xgb_train, results_xgb_test))
-colnames(results_xgb) <- c("train_xgb", "test_xgb")
-rownames(results_xgb) <- c("RMSE", "R2", "ADJ_R2")
-
-errors_xgb <- xgb_pred_test - test_target
+results_xgb_withStateDemRatio <- data.frame(cbind(results_xgb_train, results_xgb_test))
+colnames(results_xgb_withStateDemRatio) <- c("train_xgb", "test_xgb")
+rownames(results_xgb_withStateDemRatio) <- c("RMSE", "R2", "ADJ_R2")
 
 # print results
-results_xgb
+results_xgb_withStateDemRatio
 
 
-# PLOTS --------------------------------------------------
+### TESTING THE MODEL ON DATA WITH NO OBSERVATIONS FOR DEM-REP-RATIOS ###--------------------------------------------
 
-# from wide to long dataframe needed for plotting
-log <- xgb$evaluation_log %>% gather(key = 'dataset', value = 'RMSE', -iter)
+# remove not needed values
+rm(list=setdiff(ls(), c("xgb_withStateDemRatio", 'xgb_withStateDemRatio', 'params_xgb_withStateDemRatio', 'results_xgb_withStateDemRatio', 'carListingsClean.forecast', 'xgb_best_iteration_withStateDemRatio')))
+gc()
 
-# plot RMSE improvement 
-plot_rmse <- ggplot(data = log, aes(x = iter, y = RMSE, color = dataset)) +
-  geom_point() +
-  xlab('iteration') +
-  ggtitle('Return Mean Squared Error over iterations')
-plot_rmse
-
-# plot an example tree of all
-xgb.plot.tree(feature_names = names(dtrain), 
-              model = xgb, 
-              trees = 1)
-
-# Plot importance
-importance <- xgb.importance(feature_names = colnames(sparse_matrix_train), model = xgb)
-xgb_importance <- xgb.plot.importance(importance_matrix = importance, top_n = 15)
-plot_xgb_importance <- xgb_importance %>%
-  mutate(Feature = fct_reorder(Feature, Importance)) %>%
-  ggplot(aes(x=Feature, y=Importance)) +
-  geom_bar(stat="identity", fill="#f68060", alpha=.6, width=.4) +
-  coord_flip() +
-  xlab("") +
-  theme_bw() +
-  ggtitle('Feature Importance Plot for XG-Boost')
-plot_xgb_importance
-
-# define top 3 relevant variables
-variable1 = xgb_importance$Feature[1]
-variable2 = xgb_importance$Feature[2]
-variable3 = xgb_importance$Feature[3]
-
-# merge dataframes
-merged_df <- data.frame(cbind(xgb_pred_test, test_target)) #by 0 merges based on index
-colnames(merged_df) <- c('xgb_pred_test', 'DemRepRatio')
-merged_df <- merged_df[order(merged_df$DemRepRatio),]
-merged_df$initialindex <- row.names(merged_df)
-row.names(merged_df) <- NULL
-
-# Plot predicted vs. actual 
-colors <- c("actual" = "red", "predicted" = "blue")
-plot_xgb <- ggplot(data = merged_df, aes(x = as.numeric(row.names(merged_df)))) +
-  geom_point(aes(y = xgb_pred_test, color = 'predicted')) +
-  geom_point(aes(y = DemRepRatio, color = 'actual')) +
-  ggtitle('Actual vs. predicted values') + 
-  scale_color_manual(values = colors) +
-  labs(x = 'Index', y = 'DemRepRatio')
-plot_xgb
-
-# create datafrome for plotting
-test_sparse <- model.matrix(~.-1, data = test)
-
-# Plot most Top 1 variable vs. actual 
-plot_v1 <- ggplot(data = data.frame(test_sparse)) +
-  geom_point(aes(x = !!ensym(variable1), y = DemRepRatio)) +
-  ggtitle(paste0('DemRepRatio vs. ', variable1))
-plot_v1
-
-# Plot most Top 2 variable vs. actual 
-plot_v2 <- ggplot(data = data.frame(test_sparse)) +
-  geom_point(aes(x = !!ensym(variable2), y = DemRepRatio)) +
-  ggtitle(paste0('DemRepRatio vs. ', variable2))
-plot_v2
-
-# Plot most Top 3 variable vs. actual 
-plot_v3 <- ggplot(data = data.frame(test_sparse)) +
-  geom_point(aes(x = !!ensym(variable3), y = DemRepRatio)) +
-  ggtitle(paste0('DemRepRatio vs. ', variable3))
-plot_v3
+# prepare dataframe before prediction
+carListingsClean.forecast.dt <- data.table(data.frame(carListingsClean.forecast))
+index <- as.numeric(seq(1:nrow(carListingsClean.forecast.dt)))
+state <- as.character(carListingsClean.forecast.dt$state)
+county <- as.character(carListingsClean.forecast.dt$county)
+df <- data.frame(cbind(index, state, county))
+df$index <- as.numeric(index)
 
 
-# SAVE MODELS AND PLOTS -----------------------------
+# add and delete variables in ffdf
+carListingsClean.forecast$index <- as.ff(index)
+carListingsClean.forecast$county <- NULL
+carListingsClean.forecast$state <- NULL
+carListingsClean.forecast$DemRepRatio <- NULL
 
-# make dir
-dir.create('./plots/')
-dir.create('./models/')
+# create a sparse matrix, which we need as input for prediction
+# note that we keep track of the index with "index_new" as the model.matrix omits factors for which there are no observations
+# this results in a smaller dataframe
+matrix_forecast <- model.matrix(~.-1, data = carListingsClean.forecast)
+index_new <- matrix_forecast[,'index']
+matrix_forecast <- matrix_forecast[,-ncol(matrix_forecast)] 
 
-# save plot
-ggsave('plot_rmse', path = './Plots/', plot = plot_rmse, device = 'png')
-ggsave('plot_xgb_v1.png', path = './Plots/', plot = plot_v1, device = 'png')
-ggsave('plot_xgb_v2.png', path = './Plots/', plot = plot_v2, device = 'png')
-ggsave('plot_xgb_v3.png', path = './Plots/', plot = plot_v3, device = 'png')
-ggsave('plot_xgb.png', path = './Plots/', plot = plot_xgb, device = 'png')
-ggsave('plot_xgb_importance.png', path = './Plots/', plot = plot_xgb_importance, device = 'png')
+# predict values
+forecast <- data.table(predict(xgb_withStateDemRatio, matrix_forecast))
+forecast$index <- index_new
 
-# save model to local file
-xgb.save(xgb, "./Models/xgboost.model")
+# check if we get equal length
+identical(nrow(matrix_forecast), length(index_new), nrow(forecast))
 
-# save results
-save(results_xgb,file="./Models/results_xgboost.RData")
+# merge both dataframes for later
+xgb_forecast <- inner_join(forecast, df, by = 'index')
+colnames(xgb_forecast) = c('forecast', 'index', 'state', 'county')
 
-# save errors
-save(errors_xgb, file = "./Models/errors_xgb.RData")
+# drop index, as we don't need it anymore
+xgb_forecast$index <- NULL
 
-# save parameters
-save(params_xgb, file = "./Models/params_xgb.RData")
-save(xgb_best_iteration, file = "./Models/xgb_best_iteration.RData")
+# count number of forecast listings per state
+forecast.count <- xgb_forecast %>%
+  group_by(state, county) %>%
+  summarise(obs_per_forecast = length(forecast)) %>%
+  ungroup
 
+# Average the forecast values on a state and county level
+xgb_forecast <- xgb_forecast %>%
+  group_by(state, county) %>%
+  summarise(forecast = mean(forecast, na.rm = TRUE)) %>%
+  ungroup
+
+# Only keep forecasts that are based on at least 100 observations
+xgb_forecast <- xgb_forecast[forecast.count$obs_per_forecast > 100, ]
+
+### SAVE ###--------------------------------------------
+
+# save xgb model
+xgb.save(xgb_withStateDemRatio, './models/xgb_model_withStateDemRatio')
+
+# save xgb files
+save(xgb_best_iteration_withStateDemRatio, file = './models/xgb_best_iteration_withStateDemRatio.RData')
+save(xgb_withStateDemRatio, file = './models/xgb_withStateDemRatio.RData')
+save(params_xgb_withStateDemRatio, file = "./models/xgb_params_withStateDemRatio.RData")
+save(results_xgb_withStateDemRatio, file = "./models/xgb_results_withStateDemRatio.RData")
+
+# save output
+fwrite(xgb_forecast, file = './models/xgb_forecast.csv', row.names = FALSE)
 
 
 toc()

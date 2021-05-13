@@ -129,6 +129,51 @@ ols_vif_tol(ols)
 ols_correlations(ols)
 
 # Test forecast on existing data ***********************************************
+
+# In sample
+forecast_evaluate <- predict(ols, carListings.df.withCounty.train)
+forecast_evaluate <- as.data.frame(cbind(cbind(as.character(stateTrain.train), as.character(countyTrain.train)), forecast_evaluate))
+
+# Scale back
+mu <- attr(carListings.df$DemRepRatio,"scaled:center")
+std <- attr(carListings.df$DemRepRatio,"scaled:scale")
+forecast_evaluate$forecast <- (as.numeric(forecast_evaluate$forecast)*std) + mu
+forecast_evaluate <- na.omit(forecast_evaluate)
+
+# Count number of car listings per state
+forecast_evaluate.count <- forecast_evaluate %>%
+  group_by(V1, V2) %>%
+  summarise(forecast = length(forecast_evaluate)) %>%
+  ungroup
+
+# Average value as forecast
+forecast_evaluate <- forecast_evaluate %>%
+  group_by(V1, V2) %>%
+  summarise(forecast = mean(forecast, na.rm = TRUE)) %>%
+  ungroup
+
+# Only keep forecasts that are based on at least 100 observations
+forecast_evaluate <- forecast_evaluate[forecast_evaluate.count$forecast > 100, ]
+names(forecast_evaluate) <- c('state', 'county', 'forecast')
+
+# Add true values
+forecast_evaluate <- merge(forecast_evaluate, carListings.df[,c('state', 'county', 'DemRepRatio')],
+                           by.x = c('state', 'county'), by.y = c("state", "county"),
+                           all.x = TRUE)
+forecast_evaluate <- unique(forecast_evaluate)
+
+# Scale back
+forecast_evaluate$DemRepRatio <- (as.numeric(forecast_evaluate$DemRepRatio)*std) + mu
+
+# Evaluate with OLS
+olsTest <- lm('DemRepRatio ~ forecast', data = forecast_evaluate)
+summary(olsTest)
+
+# Save to evaluate performance
+fwrite(forecast_evaluate, 'models/OLS_DemRepRatiosEvaluateForecastInSample.csv')
+
+
+# Out of sample **********************************
 forecast_evaluate <- predict(ols, carListings.df.withCounty.test)
 forecast_evaluate <- as.data.frame(cbind(cbind(as.character(stateTrain.test), as.character(countyTrain.test)), forecast_evaluate))
 
@@ -167,11 +212,8 @@ forecast_evaluate$DemRepRatio <- (as.numeric(forecast_evaluate$DemRepRatio)*std)
 olsTest <- lm('DemRepRatio ~ forecast', data = forecast_evaluate)
 summary(olsTest)
 
-# Evaluate directly
-OLS_R2 <- cor(forecast_evaluate$DemRepRatio, forecast_evaluate$forecast) ^ 2
-
-# RMSE
-OLS_RMSE <- rmse(forecast_evaluate$DemRepRatio, forecast_evaluate$forecast)
+# Save to evaluate performance
+fwrite(forecast_evaluate, 'models/OLS_DemRepRatiosEvaluateForecast.csv')
 
 # Forecast *********************************************************************
 forecast <- predict(ols, carListings.df.forecast)
@@ -203,14 +245,23 @@ forecast$forecast <- olsTest$coefficients[1] + olsTest$coefficients[2] * forecas
 forecast <- as.data.frame(forecast)
 names(forecast) <- c('state', 'county', 'forecast')
 
+# Save to evaluate performance
+fwrite(forecast, 'models/OLS_DemRepRatiosForecast.csv')
+
 # Visualize ********************************************************************
 
 library(raster)
 library(leaflet)
 
 # Create df of all existing county dem rep ratios
-as.data.frame(cbind(cbind(as.character(stateTrain), as.character(countyTrain)), carListings.df.withCounty$DemRepRatio))
-availableDemRepRatios <- unique(carListings.df.withCounty[, c('state', 'county', 'DemRepRatio')])
+availableDemRepRatios <- unique(as.data.frame(cbind(cbind(as.character(stateTrain), as.character(countyTrain)), carListings.df.withCounty$DemRepRatio)))
+names(availableDemRepRatios) <- c('state', 'county', 'DemRepRatio')
+availableDemRepRatios$DemRepRatio <- as.numeric(availableDemRepRatios$DemRepRatio)
+
+# Scale back
+availableDemRepRatios$DemRepRatio <- (as.numeric(availableDemRepRatios$DemRepRatio)*std) + mu
+
+fwrite(availableDemRepRatios, 'models/DemRepRatiosAvailable.csv')
 
 # Get USA polygon data
 USA <- getData("GADM", country = "usa", level = 2)
@@ -238,7 +289,11 @@ m <- leaflet() %>%
 #           title = "Value",
 #           opacity = 1)
 
-mapshot(m, 'plots/MapAvailableCountyVotingOutome.png')
+# Show map
+m
+
+# Export
+mapshot(m,'plots/MapAvailableCountyVotingOutcome.html', file='plots/MapAvailableCountyVotingOutcome.png')
 
 # Now add a map with forecasts
 names(forecast) <- c('state', 'county', 'DemRepRatio')

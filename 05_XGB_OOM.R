@@ -1,4 +1,4 @@
-### XGBOOST ###
+### XGBOOST Out-of-memory approach ###
 ### Authors: Tim Graf, Kevin Jörg, Moritz Dänliker ###
 
 "note: 
@@ -60,7 +60,7 @@ carListingsClean$StateDemRepRatio <- NULL
 carListingsClean <- na.omit(carListingsClean)
 
 # only for testing purposes
-carListingsClean <- carListingsClean[1:10000,]
+carListingsClean <- carListingsClean[1:1000,]
 
 
 ### SPLIT TRAINING AND TESTING DATASET ### ----------------------------------------------
@@ -110,7 +110,7 @@ dtrain = xgb.DMatrix(data = './data/train.csv?format=csv&label_column=0#dtrain.c
 dtest = xgb.DMatrix(data = './data/test.csv?format=csv&label_column=0#dtest.cache') 
 
 # load parameters from 04_XGBoost
-load('./models/params_xgb.RData')
+load('./models/xgb_params.RData')
 
 # take the parameters of the loaded file
 params <- list(booster = params_xgb$booster, 
@@ -141,7 +141,6 @@ xgb <- xgb.train(data = dtrain,
 
 train_target <- getinfo(dtrain, name = 'label')
 test_target <- getinfo(dtest, name = 'label')
-
 
 # predict
 xgb_pred_train <- predict(xgb, dtrain)
