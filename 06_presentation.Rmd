@@ -286,6 +286,7 @@ https://www.kaggle.com/ananaymital/us-used-cars-dataset
 
 <center>
 
+![](./plots/OLSForecastHiRes.png){width=92%}
 </center>
 
 ## Actual vs. predicted values (Linear)
