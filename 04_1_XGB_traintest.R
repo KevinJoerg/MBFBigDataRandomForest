@@ -112,8 +112,8 @@ gc()
 "Note: This method uses a lot of memory, thus we do hyperparameter tuning on a subsample"
 
 # make a subsample
-n = 0.001
-smp_size <- floor(n * nrow(sparse_matrix_train)) ## 75% of the sample size
+n = 0.01
+smp_size <- floor(n * nrow(sparse_matrix_train)) 
 train_ind <- base::sample(seq_len(nrow(sparse_matrix_train)), size = smp_size)
 sparse_matrix_train_subsample <- sparse_matrix_train[train_ind,]
 train_target_subsample <- train_target[train_ind,]
@@ -161,11 +161,11 @@ set.seed(0)
 xgb_model = caret::train(
   sparse_matrix_train_subsample, as.double(train_target_subsample[, 'DemRepRatio']),
   trControl = xgb_trcontrol,
-  tuneGrid = xgbGrid.simple,
+  tuneGrid = xgbGrid,
   method = "xgbTree",
   tree_method = 'hist',
   objective = "reg:squarederror", 
-  tuneLength = 15, 
+  tuneLength = 100, 
   model = FALSE, 
   returnData = FALSE
 )
@@ -176,80 +176,80 @@ toc()
 
 ### MODEL 1: FIND OPTIMAL PARAMETERS - WITH MLR ###  -----------------------------
 "Note: This worked on a MacBook. However, it still consumes a lot of RAM and computing time"
-
-# make the subsample
-n = 0.0001
-smp_size <- floor(n * nrow(train)) ## 75% of the sample size
-train_ind <- base::sample(seq_len(nrow(train)), size = smp_size)
-train_subsample <- train[train_ind,]
-train_target_subsample <- train_target[train_ind,]
-
-
-set.seed(123)
-
-# create tasks for learner
-traintask <- makeRegrTask(data = data.frame(train), target = 'DemRepRatio')
-
-# create dummy features, as classif.xgboost does not support factors
-traintask <- createDummyFeatures(obj = traintask)
-
-# create learner
-# fix number of rounds and eta
-lrn <- makeLearner("regr.xgboost", predict.type = "response")
-lrn$par.vals <- list(objective="reg:squarederror",
-                     eval_metric="rmse",
-                     nrounds=100L,
-                     eta = 0.1)
-
-# set parameter space
-# for computational reasons we only optimize the most important variables with are the booster type and the max depth per tree
-params_xgb <- makeParamSet(makeDiscreteParam("booster", values = c("gbtree", "dart")), # gbtree and dart - use tree-based models, while glinear uses linear models
-                           makeIntegerParam("max_depth",lower = 3L,upper = 10L),
-                           makeNumericParam("min_child_weight",lower = 1L,upper = 10L),
-                           makeNumericParam("subsample",lower = 0.2,upper = 1),
-                           makeNumericParam("colsample_bytree",lower = 0.1,upper = 1),
-                           makeDiscreteParam("eta", values = c(0.05, 0.1, 0.2)),
-                           makeDiscreteParam("gamma", values = c(0, 0.2, 0.5, 0.7))
-)
-
-# set resampling strategy
-# If you have many classes for a classification type predictive modeling problem or the classes are imbalanced (there are a lot more instances for one class than another),
-# it can be a good idea to create stratified folds when performing cross validation.
-# however stratification is not supported for regression tasks so we set it to false
-rdesc <- makeResampleDesc("CV",stratify = F, iters=5L)
-
-# search strategy
-# instead of a grid search we use a random search strategy to find the best parameters.
-ctrl <- makeTuneControlRandom(maxit = 100L) # maxit is the number of iterations for random search
-
-# set parallel backend
-parallelStartSocket(cpus = detectCores(), level = "mlr.tuneParams")
-
-# parameter tuning
-mytune <- tuneParams(learner = lrn,
-                     task = traintask,
-                     resampling = rdesc,
-                     par.set = params_xgb,
-                     control = ctrl,
-                     show.info = TRUE)
-
-parallelStop()
-
-# print the optimal parameters
-mytune
-
-gc()
-
-# take the parameters of mytune
-params_xgb <- list(booster = mytune$x$booster,
-                   objective = "reg:squarederror",
-                   eta=mytune$x$eta, # learning rate, usually between 0 and 1. makes the model more robust by shrinking the weights on each step
-                   gamma=mytune$x$gamma, # regularization (prevents overfitting), higher means more penalty for large coef. makes the algo more conservative
-                   subsample= mytune$x$subsample, # fraction of observations taken to make each tree. the lower the more conservative and more underfitting, less overfitting.
-                   max_depth = mytune$x$max_depth, # max depth of trees, the more deep the more complex and overfitting
-                   min_child_weight = mytune$x$min_child_weight, # min number of instances per child node, blocks potential feature interaction and thus overfitting
-                   colsample_bytree = mytune$x$colsample_bytree # number of variables per tree, typically between 0.5 - 0.9
-                   )
+# 
+# # make the subsample
+# n = 0.01
+# smp_size <- floor(n * nrow(train)) 
+# train_ind <- base::sample(seq_len(nrow(train)), size = smp_size)
+# train_subsample <- train[train_ind,]
+# train_target_subsample <- train_target[train_ind,]
+# 
+# 
+# set.seed(123)
+# 
+# # create tasks for learner
+# traintask <- makeRegrTask(data = data.frame(train), target = 'DemRepRatio')
+# 
+# # create dummy features, as classif.xgboost does not support factors
+# traintask <- createDummyFeatures(obj = traintask)
+# 
+# # create learner
+# # fix number of rounds and eta
+# lrn <- makeLearner("regr.xgboost", predict.type = "response")
+# lrn$par.vals <- list(objective="reg:squarederror",
+#                      eval_metric="rmse",
+#                      nrounds=100L,
+#                      eta = 0.1)
+# 
+# # set parameter space
+# # for computational reasons we only optimize the most important variables with are the booster type and the max depth per tree
+# params_xgb <- makeParamSet(makeDiscreteParam("booster", values = c("gbtree", "dart")), # gbtree and dart - use tree-based models, while glinear uses linear models
+#                            makeIntegerParam("max_depth",lower = 3L,upper = 10L),
+#                            makeNumericParam("min_child_weight",lower = 1L,upper = 10L),
+#                            makeNumericParam("subsample",lower = 0.2,upper = 1),
+#                            makeNumericParam("colsample_bytree",lower = 0.1,upper = 1),
+#                            makeDiscreteParam("eta", values = c(0.05, 0.1, 0.2)),
+#                            makeDiscreteParam("gamma", values = c(0, 0.2, 0.5, 0.7))
+# )
+# 
+# # set resampling strategy
+# # If you have many classes for a classification type predictive modeling problem or the classes are imbalanced (there are a lot more instances for one class than another),
+# # it can be a good idea to create stratified folds when performing cross validation.
+# # however stratification is not supported for regression tasks so we set it to false
+# rdesc <- makeResampleDesc("CV",stratify = F, iters=5L)
+# 
+# # search strategy
+# # instead of a grid search we use a random search strategy to find the best parameters.
+# ctrl <- makeTuneControlRandom(maxit = 100L) # maxit is the number of iterations for random search
+# 
+# # set parallel backend
+# parallelStartSocket(cpus = detectCores(), level = "mlr.tuneParams")
+# 
+# # parameter tuning
+# mytune <- tuneParams(learner = lrn,
+#                      task = traintask,
+#                      resampling = rdesc,
+#                      par.set = params_xgb,
+#                      control = ctrl,
+#                      show.info = TRUE)
+# 
+# parallelStop()
+# 
+# # print the optimal parameters
+# mytune
+# 
+# gc()
+# 
+# # take the parameters of mytune
+# params_xgb <- list(booster = mytune$x$booster,
+#                    objective = "reg:squarederror",
+#                    eta=mytune$x$eta, # learning rate, usually between 0 and 1. makes the model more robust by shrinking the weights on each step
+#                    gamma=mytune$x$gamma, # regularization (prevents overfitting), higher means more penalty for large coef. makes the algo more conservative
+#                    subsample= mytune$x$subsample, # fraction of observations taken to make each tree. the lower the more conservative and more underfitting, less overfitting.
+#                    max_depth = mytune$x$max_depth, # max depth of trees, the more deep the more complex and overfitting
+#                    min_child_weight = mytune$x$min_child_weight, # min number of instances per child node, blocks potential feature interaction and thus overfitting
+#                    colsample_bytree = mytune$x$colsample_bytree # number of variables per tree, typically between 0.5 - 0.9
+#                    )
 
 ### MODEL 2: FIND OPTIMAL ITERATIONS ###  -----------------------------
 
