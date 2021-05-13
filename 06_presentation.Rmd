@@ -24,8 +24,55 @@ knitr::opts_chunk$set(echo = FALSE)
 # Load some files
 ols.coefficients <- readRDS(file = "Pictures_presentation/OLSOutput.rds")
 performance_metrics <- readRDS(file = 'Pictures_presentation/performance_metrics.rds')
-map <- readRDS(file = "Pictures_presentation/MapComplete.rds")
-map
+
+# Dem Rep Ratios that are available
+DemRepRatiosAvailable <- fread('models/DemRepRatiosAvailable.csv')
+
+# XGB Forecast
+DemRepRatiosXGBForecast <- fread('models/xgb_forecast.csv')
+
+# Function to plot
+plotUSVotingData <- function(dataset){
+  # Get USA polygon data
+  USA <- getData("GADM", country = "usa", level = 2)
+  USA@data$NAME_0 <- as.character(lapply(USA@data$NAME_0, tolower))
+  USA@data$NAME_1 <- as.character(lapply(USA@data$NAME_1, tolower))
+  USA@data$NAME_2 <- as.character(lapply(USA@data$NAME_2, tolower))
+  
+  # Append data
+  temp <- merge(USA, dataset,
+                by.x = c("NAME_1", "NAME_2"), by.y = c("state", "county"),
+                all.x = TRUE)
+  
+  # Create a color range for the markers
+  pal.quantile <- colorQuantile("RdYlBu", domain =  c(0,1), reverse = FALSE, n = 10)
+  mypal <- pal.quantile(temp$DemRepRatio)
+  
+  # Create the leaflet map
+  map <- leaflet() %>% 
+    addProviderTiles("OpenStreetMap.Mapnik") %>%
+    setView(lat = 39.8283, lng = -98.5795, zoom = 4) %>%
+    addPolygons(data = USA, stroke = FALSE, smoothFactor = 0.2, fillOpacity = 0.7,
+                fillColor = mypal,
+                popup = paste("Region: ", temp$NAME_2, "<br>",
+                              "Value: ", round(temp$DemRepRatio,3), "<br>")) %>%
+    addLegend(position = "bottomleft", pal = pal.quantile, values = c(0,1),
+              title = "Value",
+              opacity = 1)
+
+# Return map
+return(map)
+}
+
+# Create map
+names(DemRepRatiosXGBForecast) <- c('state', 'county', 'DemRepRatio')
+
+# Combine observed with forecasts
+DemRepRatiosFullMap <- rbind(DemRepRatiosXGBForecast[,c('state', 'county', 'DemRepRatio')], DemRepRatiosAvailable)
+
+map <- plotUSVotingData(DemRepRatiosFullMap)
+
+
 ```
 
 ## Agenda
