@@ -1,6 +1,7 @@
 library(data.table)
 library(leaflet)
 library(mapview)
+library(raster)
 
 rm(list = ls())
 
