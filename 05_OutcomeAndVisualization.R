@@ -2,12 +2,13 @@ library(data.table)
 library(leaflet)
 library(mapview)
 
+rm(list = ls())
+
 # set wd to where the source file is
 # make sure you have the datafiles in a /data/ folder
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 
-
-# Load the intermediate data
+# Load the intermediate data ***************************************************
 
 # OLS
 
@@ -34,7 +35,7 @@ DemRepRatiosXGBEvaluate <- fread('models/xgb_pred_test.csv')
 # XGB Forecast
 DemRepRatiosXGBForecast <- fread('models/xgb_forecast.csv')
 
-# Evaluate performance *********************************************************
+# Get performance metrics of OLS and XGB ***************************************
 
 # Data of evaluate set
 n_observations <- 455
@@ -56,15 +57,33 @@ rmse <- function(actual, predicted){
 r2_ols_in_sample <- R2(DemRepRatiosOLSEvaluateInSample$DemRepRatio, DemRepRatiosOLSEvaluateInSample$forecast)
 r2_adjusted_ols_in_sample <- adjusted_R2(DemRepRatiosOLSEvaluateInSample$DemRepRatio, DemRepRatiosOLSEvaluateInSample$forecast, n_observations, n_variables)
 rmse_ols_in_sample <- rmse(DemRepRatiosOLSEvaluateInSample$DemRepRatio, DemRepRatiosOLSEvaluateInSample$forecast)
+ols_metrics_in_sample <- c(r2_ols_in_sample, r2_adjusted_ols_in_sample, rmse_ols_in_sample)
 
 # OLS out of sample
 r2_ols <- R2(DemRepRatiosOLSEvaluate$DemRepRatio, DemRepRatiosOLSEvaluate$forecast)
 r2_adjusted_ols <- adjusted_R2(DemRepRatiosOLSEvaluate$DemRepRatio, DemRepRatiosOLSEvaluate$forecast, n_observations, n_variables)
 rmse_ols <- rmse(DemRepRatiosOLSEvaluate$DemRepRatio, DemRepRatiosOLSEvaluate$forecast)
+ols_metrics_out_of_sample <- c(r2_ols, r2_adjusted_ols, rmse_ols)
 
 # XGB in sample
-# r2_xgb_in_sample <- R2(DemRepRatiosXGBEvaluateInSample$)
+r2_xgb_in_sample <- R2(DemRepRatiosXGBEvaluateInSample$actual, DemRepRatiosXGBEvaluateInSample$predicted)
+r2_adjusted_xgb_in_sample <- adjusted_R2(DemRepRatiosXGBEvaluateInSample$actual, DemRepRatiosXGBEvaluateInSample$predicted, n_observations, n_variables)
+rmse_xgb_in_sample <- rmse(DemRepRatiosXGBEvaluateInSample$actual, DemRepRatiosXGBEvaluateInSample$predicted)
+xgb_metrics_in_sample <- c(r2_xgb_in_sample, r2_adjusted_xgb_in_sample, rmse_xgb_in_sample)
 
+# XGB out of sample
+r2_xgb <- R2(DemRepRatiosXGBEvaluate$actual, DemRepRatiosXGBEvaluate$predicted)
+r2_adjusted_xgb <- adjusted_R2(DemRepRatiosXGBEvaluate$actual, DemRepRatiosXGBEvaluate$predicted, n_observations, n_variables)
+rmse_xgb <- rmse(DemRepRatiosXGBEvaluate$actual, DemRepRatiosXGBEvaluate$predicted)
+xgb_metrics_out_of_sample <- c(r2_xgb, r2_adjusted_xgb, rmse_xgb)
+
+# Create a dataframe of the observations
+performance_metrics <- data.frame(matrix(c(ols_metrics_in_sample, ols_metrics_out_of_sample, xgb_metrics_in_sample, xgb_metrics_out_of_sample), ncol=2))
+names(performance_metrics) <- c('OLS', 'XGB')
+row.names(performance_metrics) <- c('R2 in Sample', 'Adjusted R2 in Sample', 'RMSE in Sample', 'R2 out of Sample', 'Adjusted R2 out of Sample', 'RMSE out of Sample')
+
+# Save for presentation
+fwrite(performance_metrics, 'models/performance_metrics.csv')
 
 # Visualization ****************************************************************
 
@@ -121,8 +140,8 @@ m
 mapshot(m,'plots/OLSForecast.html', file='plots/OLSForecast.png')
 
 # Map of only XGB forecasted counties ******************************************
-#names(DemRepRatiosOLSForecast) <- c('state', 'county', 'DemRepRatio')
-# DemRepRatiosXGBForecast$DemRepRatio <- as.numeric(DemRepRatiosXGBForecast$DemRepRatio)
+names(DemRepRatiosXGBForecast) <- c('state', 'county', 'DemRepRatio')
+DemRepRatiosXGBForecast$DemRepRatio <- as.numeric(DemRepRatiosXGBForecast$DemRepRatio)
 m <- plotUSVotingData(DemRepRatiosXGBForecast)
 
 # Show map
@@ -132,14 +151,18 @@ m
 mapshot(m,'plots/XGBForecast.html', file='plots/XGBForecast.png')
 
 # Map of observed and annotated forecasted counties ****************************
+names(DemRepRatiosXGBForecast) <- c('state', 'county', 'DemRepRatio')
 
 # Combine observed with forecasts
-DemRepRatiosFullMap <- rbind(DemRepRatiosOLSForecast[,c('state', 'county', 'DemRepRatio')], DemRepRatiosAvailable)
+DemRepRatiosFullMap <- rbind(DemRepRatiosXGBForecast[,c('state', 'county', 'DemRepRatio')], DemRepRatiosAvailable)
 
-m <- plotUSVotingData(DemRepRatiosFullMap)
+m_full <- plotUSVotingData(DemRepRatiosFullMap)
 
 # Show map
-m
+m_full
+
+# Save map for presentation
+saveRDS(m_full, file='Pictures_presentation/MapComplete.rds')
 
 # Export
 mapshot(m,'plots/FullMap.html', file='plots/FullMap.png')
