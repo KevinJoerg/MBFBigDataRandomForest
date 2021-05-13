@@ -1,23 +1,12 @@
 library(data.table)
 library(ff)
 library(ffbase)
-library(ffbase2)
-# devtools::install_github("edwindj/ffbase2")
-library(pryr)
 library(dplyr)
-library(tidyr)
-library(biglm)
-library(stringr)
-library(lobstr)
 library(lmtest)
 library(sandwich)
 library(olsrr)
-library(ggplot2)
-library(corrgram)
 library(tictoc)
 library(gputools)
-library(Metrics)
-library(mapview)
 
 rm(list = ls())
 
@@ -102,12 +91,16 @@ bptest(ols)
 # robust standard errors
 ols.robust <- coeftest(ols, vcov = vcovHC(ols, type = "HC0"))
 ols.robust
+
+# Store some interesting ones
 ols.robust.short <- ols.robust[c(1,2,4,5,6,7,11,12,17,18,33,21,22,23,24,35), 1:4]
 ols.robust.short
 saveRDS(ols.robust.short, file='Pictures_presentation/OLSOutput.rds')
 
 # Plot residuals with qqplot
-# The Q-Q plot, or quantile-quantile plot, is a graphical tool to help us assess if a set of data plausibly came from some theoretical distribution such as a Normal or exponential
+# The Q-Q plot, or quantile-quantile plot, is a graphical tool to help us assess 
+# if a set of data plausibly came from some theoretical distribution such as a 
+# Normal or exponential
 qqnorm(ols$residuals, pch = 1, frame = FALSE)
 qqline(ols$residuals, col = "steelblue", lwd = 2)
 
@@ -119,11 +112,13 @@ ols_vif_tol(ols)
 # accounted for by the other predictors.
 ols_correlations(ols)
 
-###  ***********************************************
+###  In sample prediction ------------------------------------------------------
 
 # In sample
 forecast_evaluate <- predict(ols, carListings.df.withCounty.train)
-forecast_evaluate <- as.data.frame(cbind(cbind(as.character(stateTrain.train), as.character(countyTrain.train)), forecast_evaluate))
+forecast_evaluate <- as.data.frame(cbind(cbind(as.character(stateTrain.train), 
+                                               as.character(countyTrain.train)), 
+                                         forecast_evaluate))
 
 # Scale back
 mu <- attr(carListings.df$DemRepRatio,"scaled:center")
@@ -164,9 +159,11 @@ summary(olsTest)
 fwrite(forecast_evaluate, 'models/OLS_DemRepRatiosEvaluateForecastInSample.csv')
 
 
-# Out of sample **********************************
+###  Out of sample prediction --------------------------------------------------
 forecast_evaluate <- predict(ols, carListings.df.withCounty.test)
-forecast_evaluate <- as.data.frame(cbind(cbind(as.character(stateTrain.test), as.character(countyTrain.test)), forecast_evaluate))
+forecast_evaluate <- as.data.frame(cbind(cbind(as.character(stateTrain.test), 
+                                               as.character(countyTrain.test)), 
+                                         forecast_evaluate))
 
 # Scale back
 mu <- attr(carListings.df$DemRepRatio,"scaled:center")
@@ -206,9 +203,10 @@ summary(olsTest)
 # Save to evaluate performance
 fwrite(forecast_evaluate, 'models/OLS_DemRepRatiosEvaluateForecast.csv')
 
-# Forecast *********************************************************************
+### Forecast -------------------------------------------------------------------
 forecast <- predict(ols, carListings.df.forecast)
-forecast <- as.data.frame(cbind(cbind(as.character(stateForecast), as.character(countyForecast)), forecast))
+forecast <- as.data.frame(cbind(cbind(as.character(stateForecast), 
+                                      as.character(countyForecast)), forecast))
 
 # Scale back
 mu <- attr(carListings.df$DemRepRatio,"scaled:center")
@@ -239,10 +237,12 @@ names(forecast) <- c('state', 'county', 'forecast')
 # Save to evaluate performance
 fwrite(forecast, 'models/OLS_DemRepRatiosForecast.csv')
 
-# Save available Dem Rep ratios for visualization ******************************
+### Save available Dem Rep ratios for visualization ----------------------------
 
 # Create df of all existing county dem rep ratios
-availableDemRepRatios <- unique(as.data.frame(cbind(cbind(as.character(stateTrain), as.character(countyTrain)), carListings.df.withCounty$DemRepRatio)))
+availableDemRepRatios <- unique(as.data.frame(cbind(cbind(as.character(stateTrain), 
+                                                          as.character(countyTrain)), 
+                                                    carListings.df.withCounty$DemRepRatio)))
 names(availableDemRepRatios) <- c('state', 'county', 'DemRepRatio')
 availableDemRepRatios$DemRepRatio <- as.numeric(availableDemRepRatios$DemRepRatio)
 
