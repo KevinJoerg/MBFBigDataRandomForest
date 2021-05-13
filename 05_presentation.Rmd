@@ -1,5 +1,5 @@
 ---
-title: "US Presidential election outcome explained by used car data"
+title: "Used car data as predictor for US-Presidential election outcomes"
 author: "**Group Random Forest**: Kevin Joerg, Moritz Dändliker, Tim Graf"
 date: "Mai 20^th^ 2021"
 output:  
@@ -18,9 +18,10 @@ knitr::opts_chunk$set(echo = FALSE)
 1. Introduction
 2. Data gathering & cleaning
 3. Descriptive statistics
-4. Linear Regressions (CPU&GPU)
-5. XGBoost
-6. Points of further consideration
+4. Analytical approaches
+5. Linear regression coefficients
+6. XGBoost parameter importance
+7. Results with XGBoost prediction
 
 ## Introduction
 
@@ -56,7 +57,7 @@ But are those socio-economic gaps also visible when it comes to the American's l
 ## Data gathering(1/2)
 ### **Two data samples were used**
 
-1. Used Car dataset ***(Kaggle)***
+1. Used Car dataset ***(Kaggle):*** loaded with an out-of-memory approach using the ff-package to store data chunks of 100k observations at a time
     
     <font size="-0.3">
     
@@ -72,7 +73,7 @@ But are those socio-economic gaps also visible when it comes to the American's l
     <font size="-0.3">
 
     + Voting outcome of 1427/3006 counties in 30/50 states
-    + Split of votes for Presidential candidates per jurisdiction
+    + Split of votes for all Presidential candidates per jurisdiction
    
     </font>
   **Total size for both files ~0.2GB**
@@ -82,15 +83,15 @@ But are those socio-economic gaps also visible when it comes to the American's l
 ### **Merging:**
 
 
-Problem : county level voting data vs. longitudonale/lattitudonale level car data
+Problem : County level voting data vs. longitudonale/lattitudonale level car data
 
 
 Solution: Package 'jvamisc' maps latitudinal & longitudinal car data to county
 
 ### **Cleaning approach**
 
-1. Strain Splitting and variable type definition
-2. Visually identified Outliers were excluded with an ff out-of-memory approach
+1. Strain splitting, variable type definition and data types were set
+2. Visually identified outliers were excluded with an ff out-of-memory approach
     <style>
   .col2 {
     columns: 2 200px;         /* number of columns and width in pixels*/
@@ -125,7 +126,7 @@ Solution: Package 'jvamisc' maps latitudinal & longitudinal car data to county
 
 <center>
 
-$\frac{democraticvotes}{democratic votes + republican votes}$
+$\frac{democratic\:votes}{democratic\:votes + republican\:votes}$
 
 </center>
 ### **Independant variables:**
@@ -158,34 +159,33 @@ $\frac{democraticvotes}{democratic votes + republican votes}$
 </font>
 --> **Total sample size:** 2.6mio observations
 
-## Sample in Use (2/2)
+## Sample in use (2/2)
 
 
 <center>
 
-![](./plots/MapAvailableCountyVotingOutcomebetter.png)
+![](./plots/MapAvailableCountyVotingOutcome.png){width=92%}
 </center>
 
 
-## Analysis Approaches
+## Analytical approaches
 
-**Linear Regression** 
+**Linear regression** 
+Normalized values were used
   
   - on CPU
   - on GPU
-    - package 'GPUtools' was used to ....
-    - CUDA for INVIDIA GPUs (downfall: does not work on other GPUs)
-
+    - package 'GPUtools' used to.....
+    - CUDA for INVIDIA GPUs *(downfall: does not work on other GPUs)*
 
 **XGBoost**
-Gradient boosted tree-concept deriving predictions from bootstrap aggregation
+Gradient boosting tree-technique using parallelization of computation by default & deriving predictions from bootstrap aggregation
 
-  - in RAM
-  - Out-of-memory
-    - Parallelization
+  - In RAM with approximated solutions ("hist" method)
+  - Out-of-Memory
 
 
-## Linear regression Coefficients and Robustness
+## Linear regression coefficients and robustness
 * Tested for heteroskedasticity and mulitcollinearity
 
 ## XGBoost parameter importance plot
@@ -208,7 +208,7 @@ https://www.kaggle.com/ananaymital/us-used-cars-dataset
 
 ## XGBoost: Concept
 <center>
-![*coneptional framework by Tim Graf*](./Pictures_presentation/XGBoost.PNG){width=75%}
+![](./Pictures_presentation/XGBoost.PNG){width=75%}
 </center>
 
 ## Results with linear regression
