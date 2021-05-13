@@ -12,6 +12,7 @@ logo: ./Pictures_presentation/logo.png
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE)
+ols.coefficients <- readRDS(file = "Pictures_presentation/OLSOutput.rds")
 ```
 
 ## Agenda
@@ -164,7 +165,7 @@ $\frac{democratic\:votes}{democratic\:votes + republican\:votes}$
 
 <center>
 
-![](./plots/MapAvailableCountyVotingOutcomeHiRes.png){width=92%}
+![](./plots/MapAvailableCountyVotingOutcome.png){width=92%}
 </center>
 
 
@@ -175,7 +176,7 @@ Normalized values were used
   
   - on CPU
   - on GPU
-    - package 'GPUtools' used to.....
+    - gpuLm function from package 'GPUtools'
     - CUDA for INVIDIA GPUs *(downfall: does not work on other GPUs)*
 
 **XGBoost**
@@ -186,7 +187,10 @@ Gradient boosting tree-technique using parallelization of computation by default
 
 
 ## Linear regression coefficients and robustness
-* Tested for heteroskedasticity and mulitcollinearity
+
+```{r mysize=TRUE, size='tiny'}
+ols.coefficients
+```
 
 ## XGBoost parameter importance plot
 <center>

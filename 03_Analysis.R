@@ -21,37 +21,18 @@ library(mapview)
 
 rm(list = ls())
 
-### SETUP ### ------------------------------------------------
-
-# # Alternative approach to read in data
-# df <- fread('./data/used_cars_data.csv', verbose = FALSE)
-# pryr::object_size(df)
-# str(df)
-
-
-# set wd to where the source file is
-# make sure you have the datafiles in a /data/ folder
+# Set wd to where the source file is
+# Make sure you have the datafiles in a /data/ folder
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
+
+### Load Data ------------------------------------------------------------------
 
 # Load the clean data
 load.ffdf(dir='./ffdfClean2')
 
-### Some analysis ### -----------------------------------------
+### Prepare data ---------------------------------------------------------------
 
-num_variables = c('city_fuel_economy', 'horsepower', 'length', 'maximum_seating', 'mileage', 'price', 'DemRepRatio', 'StateDemRepRatio')
-
-carListings.onlynum <- data.frame(carListingsClean) %>% select(num_variables)
-names(carListings.onlynum) <- c('Fuel Economy', 'HP', 'Length', 'Seats', 'Mileage', 'Price', 'Dem-Rep County', 'Dem-Rep State')
-
-
-# correlation matrix
-cor(na.omit(data.frame(carListings.onlynum)))
-
-# Create a correlogram (Slow)
-# corrgram(carListings.onlynum, lower.panel=panel.shade,
-#         upper.panel=panel.pie, main="Correlation numerical variables")
-
-# Scale variables for regression
+# Scale numeric variables for regression
 carListings.df <- as.data.frame(carListingsClean)
 for (column in colnames(carListings.df)){
   if (is.numeric(carListings.df[, column])){
@@ -64,7 +45,7 @@ for (column in colnames(carListings.df)){
 carListings.df.withCounty <- carListings.df[!is.na(carListings.df$DemRepRatio), ]
 carListings.df.forecast <- carListings.df[is.na(carListings.df$DemRepRatio), ]
 
-# For OLS, drop state and county
+# For OLS, drop state and county, but save for evaluation
 countyTrain <- carListings.df.withCounty$county
 countyForecast <- carListings.df.forecast$county
 stateTrain <- carListings.df.withCounty$state
@@ -90,15 +71,22 @@ stateTrain.train <- stateTrain[train_ind]
 countyTrain.test <- countyTrain[-train_ind]
 stateTrain.test <- stateTrain[-train_ind]
 
-# Regression
+### Regression -----------------------------------------------------------------
+
+# Regression formula
 f <- 'DemRepRatio ~ .'
-tic()
-olsgpu <- gpuLm(f, carListings.df.withCounty.train)
-toc()
+
+# Standard cpu regression
 tic()
 ols <- lm(f, carListings.df.withCounty.train)
 toc()
 
+# GPU regression, needs gputools installed with CUDA
+tic()
+olsgpu <- gpuLm(f, carListings.df.withCounty.train)
+toc()
+
+# OLS coefficients
 summary(olsgpu)
 summary(ols)
 
@@ -114,6 +102,9 @@ bptest(ols)
 # robust standard errors
 ols.robust <- coeftest(ols, vcov = vcovHC(ols, type = "HC0"))
 ols.robust
+ols.robust.short <- ols.robust[c(1,2,4,5,6,7,11,12,17,18,33,21,22,23,24,35), 1:4]
+ols.robust.short
+saveRDS(ols.robust.short, file='Pictures_presentation/OLSOutput.rds')
 
 # Plot residuals with qqplot
 # The Q-Q plot, or quantile-quantile plot, is a graphical tool to help us assess if a set of data plausibly came from some theoretical distribution such as a Normal or exponential
@@ -128,7 +119,7 @@ ols_vif_tol(ols)
 # accounted for by the other predictors.
 ols_correlations(ols)
 
-# Test forecast on existing data ***********************************************
+###  ***********************************************
 
 # In sample
 forecast_evaluate <- predict(ols, carListings.df.withCounty.train)
@@ -248,10 +239,7 @@ names(forecast) <- c('state', 'county', 'forecast')
 # Save to evaluate performance
 fwrite(forecast, 'models/OLS_DemRepRatiosForecast.csv')
 
-# Visualize ********************************************************************
-
-library(raster)
-library(leaflet)
+# Save available Dem Rep ratios for visualization ******************************
 
 # Create df of all existing county dem rep ratios
 availableDemRepRatios <- unique(as.data.frame(cbind(cbind(as.character(stateTrain), as.character(countyTrain)), carListings.df.withCounty$DemRepRatio)))
@@ -261,66 +249,8 @@ availableDemRepRatios$DemRepRatio <- as.numeric(availableDemRepRatios$DemRepRati
 # Scale back
 availableDemRepRatios$DemRepRatio <- (as.numeric(availableDemRepRatios$DemRepRatio)*std) + mu
 
+# Write CSV
 fwrite(availableDemRepRatios, 'models/DemRepRatiosAvailable.csv')
-
-# Get USA polygon data
-USA <- getData("GADM", country = "usa", level = 2)
-USA@data$NAME_0 <- as.character(lapply(USA@data$NAME_0, tolower))
-USA@data$NAME_1 <- as.character(lapply(USA@data$NAME_1, tolower))
-USA@data$NAME_2 <- as.character(lapply(USA@data$NAME_2, tolower))
-
-temp <- merge(USA, availableDemRepRatios,
-              by.x = c("NAME_1", "NAME_2"), by.y = c("state", "county"),
-              all.x = TRUE)
-
-# Create a color range for the markers
-pal.quantile <- colorQuantile("RdYlBu",
-                              domain =  temp$DemRepRatio, reverse = FALSE, n = 11)
-mypal <- pal.quantile(temp$DemRepRatio)
-
-m <- leaflet() %>% 
-  addProviderTiles("OpenStreetMap.Mapnik") %>%
-  setView(lat = 39.8283, lng = -98.5795, zoom = 4) %>%
-  addPolygons(data = USA, stroke = FALSE, smoothFactor = 0.2, fillOpacity = 0.7,
-              fillColor = mypal,
-              popup = paste("Region: ", temp$NAME_2, "<br>",
-                            "Value: ", round(temp$DemRepRatio,3), "<br>")) #%>%
-# addLegend(position = "bottomleft", pal = pal.quantile, values = temp$DemRepRatio,
-#           title = "Value",
-#           opacity = 1)
-
-# Show map
-m
-
-# Export
-mapshot(m,'plots/MapAvailableCountyVotingOutcome.html', file='plots/MapAvailableCountyVotingOutcome.png')
-
-# Now add a map with forecasts
-names(forecast) <- c('state', 'county', 'DemRepRatio')
-DemRepRatioAllCounties <- rbind(forecast_evaluate[,c('state', 'county', 'DemRepRatio')], forecast)
-
-
-temp <- merge(USA, DemRepRatioAllCounties,
-              by.x = c("NAME_1", "NAME_2"), by.y = c("state", "county"),
-              all.x = TRUE)
-
-# Create a color range for the markers
-pal.quantile <- colorQuantile("RdYlBu",
-                              domain =  temp$DemRepRatio, reverse = FALSE, n = 11)
-mypal <- pal.quantile(temp$DemRepRatio)
-
-leaflet() %>% 
-  addProviderTiles("OpenStreetMap.Mapnik") %>%
-  setView(lat = 39.8283, lng = -98.5795, zoom = 4) %>%
-  addPolygons(data = USA, stroke = FALSE, smoothFactor = 0.2, fillOpacity = 0.7,
-              fillColor = mypal,
-              popup = paste("Region: ", temp$NAME_2, "<br>",
-                            "Value: ", round(temp$DemRepRatio,3), "<br>"))# %>%
-# addLegend(position = "topleft", pal = pal.quantile, values = temp$DemRepRatio,
-#           title = "Value",
-#           opacity = 1)
-
-
 
 
 
