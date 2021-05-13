@@ -113,7 +113,7 @@ m <- plotUSVotingData(DemRepRatiosAvailable)
 m
 
 # Export
-mapshot(m,'plots/MapAvailableCountyVotingOutcome.html', file='plots/MapAvailableCountyVotingOutcome.png')
+mapshot(m,'plots/OLSForecast.html', file='plots/OLSForecast.png')
 
 
 
