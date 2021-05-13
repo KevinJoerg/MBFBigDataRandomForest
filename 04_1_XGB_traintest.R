@@ -1,20 +1,25 @@
 ### XGBOOST ###
 ### Authors: Tim Graf, Kevin Jörg, Moritz Dänliker ###
 
-"note: 
-Xgboost manages only numeric vectors. Hence we convert all factors to spare matrix with binary format
+"Note:
 
-For many machine learning algorithms, using correlated features is not a good idea. 
+This script may not work on computers with little RAM, as the hyperparameter tuning and xgboost use up alot of RAM. 
+If it crashes please try the out-of-memory approach stated in 05_XGB_OOM
+
+* Xgboost manages only numeric vectors. Hence we convert all factors to spare matrix with binary format
+
+* For many machine learning algorithms, using correlated features is not a good idea. 
 It may sometimes make prediction less accurate, and most of the time make interpretation of the model 
 almost impossible. GLM, for instance, assumes that the features are uncorrelated.
 Fortunately, decision tree algorithms (including boosted trees) are very robust to these features. 
 Therefore we have nothing to do to manage this situation.
 
-Decision trees do not require normalization of their inputs; 
+* Decision trees do not require normalization of their inputs; 
 and since XGBoost is essentially an ensemble algorithm comprised of decision trees, 
 it does not require normalization for the inputs either.
 "
 
+# if you're using a MAC OS X
 # first install libomp by using the termin and the following command: 
 # brew install libomp
 
@@ -57,8 +62,6 @@ carListingsClean <- data.frame(carListingsClean)
 carListingsClean <- carListingsClean[1:1000,]
 
 # delete columns we don't need for the regression
-carListingsClean$county <- NULL
-carListingsClean$state <- NULL
 carListingsClean$StateDemRepRatio <- NULL
 
 # omit the NAs for XGBoost
@@ -81,18 +84,27 @@ train$is_new <- as.factor(train$is_new)
 test$is_new <- as.factor(test$is_new)
 
 # define training label = dependent variable
-train_target = as.matrix((train[,'DemRepRatio']))
-test_target = as.matrix((test[,'DemRepRatio']))
+
+# define for later
+train_target = as.matrix((train[,c('DemRepRatio', 'county', 'state')]))
+test_target = as.matrix((test[,c('DemRepRatio', 'county', 'state')]))
+
+# omit variables we don't need
+files = c(train, test)
+for (i in files) {
+  files$county <- NULL
+  files$state <- NULL
+}
 
 # convert categorical factor into dummy variables using one-hot encoding
 sparse_matrix_train <- model.matrix((DemRepRatio)~.-1, data = train)
 sparse_matrix_test <- model.matrix((DemRepRatio)~.-1, data = test)
 
 # Create a dense matrix for XGBoost
-dtrain <- xgb.DMatrix(data = sparse_matrix_train, label = train_target)
-dtest <- xgb.DMatrix(data = sparse_matrix_test, label = test_target)
+dtrain <- xgb.DMatrix(data = sparse_matrix_train, label = train_target[, 'DemRepRatio'])
+dtest <- xgb.DMatrix(data = sparse_matrix_test, label = test_target[, 'DemRepRatio'])
 
-rm(train_ind, carListingsClean)
+rm(train_ind, carListingsClean, i, files, smp_size)
 gc()
 
 
@@ -225,7 +237,12 @@ xgb <- xgb.train(params = params_xgb,
 
 # predict
 xgb_pred_train <- data.table(predict(xgb, dtrain))
+xgb_pred_train <- cbind(xgb_pred_train, train_target)
+colnames(xgb_pred_train) <- c('predicted', 'actual', 'county', 'state')
+
 xgb_pred_test <- data.table(predict(xgb, dtest))
+xgb_pred_test <- cbind(xgb_pred_test, test_target)
+colnames(xgb_pred_test) <- c('predicted', 'actual', 'county', 'state')
 
 
 ### PLOTS --------------------------------------------------
