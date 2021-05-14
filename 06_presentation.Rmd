@@ -257,7 +257,7 @@ ols.coefficients
 </center>
 ## Results of the two prediction algorithms
 
-* The data set was split into a training set (75% of observations) and a sample set (25% of observations)
+The data set was split into a training set (75% of observations) and a sample set (25% of observations)
 
 ```{r mysize=TRUE, size='tiny'}
 performance_metrics
