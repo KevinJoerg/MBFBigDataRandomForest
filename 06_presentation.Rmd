@@ -273,8 +273,9 @@ map
 
 ## Sources of Data
 
-https://github.com/MEDSL/2020-elections-official
-https://www.kaggle.com/ananaymital/us-used-cars-dataset
+* US Used cars dataset: https://www.kaggle.com/ananaymital/us-used-cars-dataset
+* MIT Election Lab Voting Data: https://github.com/MEDSL/2020-elections-official
+* State Level Election Outcome: https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/42MVDX
 
 
 ## XGBoost: Concept
@@ -288,8 +289,6 @@ https://www.kaggle.com/ananaymital/us-used-cars-dataset
 
 ![](./plots/OLSForecastHiRes.png){width=92%}
 </center>
-
-## Actual vs. predicted values (Linear)
 
 ## Actual vs. predicted values (XGBoost)
 
