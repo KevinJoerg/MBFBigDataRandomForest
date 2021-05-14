@@ -27,11 +27,11 @@ DemRepRatiosOLSForecast <- fread('models/OLS_DemRepRatiosForecast.csv')
 
 # XGBOOST
 
-# Data to evaluate XGB forecasts out of sample
-DemRepRatiosXGBEvaluateInSample <- fread('models/xgb_pred_train.csv')
+# Data to evaluate XGB forecasts in sample
+DemRepRatiosXGBEvaluateInSample <- fread('models/xgb_pred_train_withState.csv')
 
 # Data to evaluate XGB forecasts out of sample
-DemRepRatiosXGBEvaluate <- fread('models/xgb_pred_test.csv')
+DemRepRatiosXGBEvaluate <- fread('models/xgb_pred_test_withState.csv')
 
 # XGB Forecast
 DemRepRatiosXGBForecast <- fread('models/xgb_forecast.csv')
@@ -68,15 +68,15 @@ ols_metrics_out_of_sample <- round(c(r2_ols, r2_adjusted_ols, rmse_ols),digits =
 ols_computation_time <- '1.9 Seconds'
 
 # XGB in sample
-r2_xgb_in_sample <- R2(DemRepRatiosXGBEvaluateInSample$actual, DemRepRatiosXGBEvaluateInSample$predicted)
-r2_adjusted_xgb_in_sample <- adjusted_R2(DemRepRatiosXGBEvaluateInSample$actual, DemRepRatiosXGBEvaluateInSample$predicted, n_observations, n_variables)
-rmse_xgb_in_sample <- rmse(DemRepRatiosXGBEvaluateInSample$actual, DemRepRatiosXGBEvaluateInSample$predicted)
+r2_xgb_in_sample <- R2(DemRepRatiosXGBEvaluateInSample$actual, DemRepRatiosXGBEvaluateInSample$forecast)
+r2_adjusted_xgb_in_sample <- adjusted_R2(DemRepRatiosXGBEvaluateInSample$actual, DemRepRatiosXGBEvaluateInSample$forecast, n_observations, n_variables)
+rmse_xgb_in_sample <- rmse(DemRepRatiosXGBEvaluateInSample$actual, DemRepRatiosXGBEvaluateInSample$forecast)
 xgb_metrics_in_sample <- round(c(r2_xgb_in_sample, r2_adjusted_xgb_in_sample, rmse_xgb_in_sample),digits = 5)
 
 # XGB out of sample
-r2_xgb <- R2(DemRepRatiosXGBEvaluate$actual, DemRepRatiosXGBEvaluate$predicted)
-r2_adjusted_xgb <- adjusted_R2(DemRepRatiosXGBEvaluate$actual, DemRepRatiosXGBEvaluate$predicted, n_observations, n_variables)
-rmse_xgb <- rmse(DemRepRatiosXGBEvaluate$actual, DemRepRatiosXGBEvaluate$predicted)
+r2_xgb <- R2(DemRepRatiosXGBEvaluate$actual, DemRepRatiosXGBEvaluate$forecast)
+r2_adjusted_xgb <- adjusted_R2(DemRepRatiosXGBEvaluate$actual, DemRepRatiosXGBEvaluate$forecast, n_observations, n_variables)
+rmse_xgb <- rmse(DemRepRatiosXGBEvaluate$actual, DemRepRatiosXGBEvaluate$forecast)
 xgb_metrics_out_of_sample <- round(c(r2_xgb, r2_adjusted_xgb, rmse_xgb),digits = 5)
 xgb_computation_time <- '63.9 Minutes'
 
