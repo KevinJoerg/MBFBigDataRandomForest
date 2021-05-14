@@ -74,9 +74,10 @@ train$is_new <- as.factor(train$is_new)
 test$is_new <- as.factor(test$is_new)
 
 # keep county for later
-county_train <- merge(as.numeric(rownames(train)), train$county)
-head(county_train)
-county_test <- cbind(rownames(test), test$county)
+county_train <- data.frame(as.numeric(rownames(train)), as.character(train$state), as.character(train$county))
+colnames(county_train) = c('index', 'state', 'county')
+county_test <- data.frame(as.numeric(rownames(test)), as.character(test$state), as.character(test$county))
+colnames(county_test) = c('index', 'state', 'county')
 
 # convert categorical factor into dummy variables using one-hot encoding
 sparse_matrix_train <- model.matrix(county~.-1, data = train)
@@ -302,8 +303,48 @@ str(train_target)
 str(xgb_pred_train)
 
 # merge predicted dataframe by the initial index
-xgb_pred_train.df <- cbind(train_target, xgb_pred_train)
-left_join(xgb_pred_train.df, train$state)
+xgb_pred_train.df <- data.frame(train_target, xgb_pred_train)
+xgb_pred_train.df$index <- as.numeric(rownames(xgb_pred_train.df))
+xgb_pred_train.df <- left_join(xgb_pred_train.df, county_train, by = 'index')
+xgb_pred_train.df <- xgb_pred_train.df %>% select(-index)
+colnames(xgb_pred_train.df) <- c('actual', 'predicted', 'state', 'county')
+head(xgb_pred_train.df)
+
+# count number of forecast listings per state
+forecast.count <- xgb_pred_train.df %>%
+  group_by(state, county) %>%
+  summarise(obs_per_forecast = length(predicted)) %>%
+  ungroup
+
+# Average the forecast values on a state and county level
+xgb_pred_train.df <- xgb_pred_train.df %>%
+  group_by(state, county) %>%
+  summarise(forecast = mean(predicted, na.rm = TRUE), actual = mean(actual, na.rm = TRUE)) %>%
+  ungroup
+
+xgb_pred_train.df <- xgb_pred_train.df[forecast.count$obs_per_forecast > 100, ]
+
+
+# merge predicted dataframe by the initial index
+xgb_pred_test.df <- data.frame(test_target, xgb_pred_test)
+xgb_pred_test.df$index <- as.numeric(rownames(xgb_pred_test.df))
+xgb_pred_test.df <- left_join(xgb_pred_test.df, county_test, by = 'index')
+xgb_pred_test.df <- xgb_pred_test.df %>% select(-index)
+colnames(xgb_pred_test.df) <- c('actual', 'predicted', 'state', 'county')
+
+# count number of forecast listings per state
+forecast.count <- xgb_pred_test.df %>%
+  group_by(state, county) %>%
+  summarise(obs_per_forecast = length(predicted)) %>%
+  ungroup
+
+# Average the forecast values on a state and county level
+xgb_pred_test.df <- xgb_pred_test.df %>%
+  group_by(state, county) %>%
+  summarise(forecast = mean(predicted, na.rm = TRUE), actual = mean(actual, na.rm = TRUE)) %>%
+  ungroup
+
+xgb_pred_test.df <- xgb_pred_test.df[forecast.count$obs_per_forecast > 100, ]
 
 
 # PLOTS --------------------------------------------------
@@ -446,15 +487,15 @@ ggsave('plot_rmse_withState.png', path = './Plots/', plot = plot_rmse, device = 
 ggsave('plot_xgb_v1_withState.png', path = './Plots/', plot = plot_v1, device = 'png')
 ggsave('plot_xgb_v2_withState.png', path = './Plots/', plot = plot_v2, device = 'png')
 ggsave('plot_xgb_v3_withState.png', path = './Plots/', plot = plot_v3, device = 'png')
-ggsave('plot_xgb.png_withState', path = './Plots/', plot = plot_xgb, device = 'png')
+ggsave('plot_xgb_withState.png', path = './Plots/', plot = plot_xgb, device = 'png')
 ggsave('plot_xgb_importance_withState.png', path = './Plots/', plot = plot_xgb_importance, device = 'png')
 
 # save model to local file
 xgb.save(xgb_withStateDemRatio, "./models/xgboost_withState.model")
 
 # save results
-fwrite(xgb_pred_train, file = "./models/xgb_pred_train_withState.csv", row.names = FALSE)
-fwrite(xgb_pred_test, file = "./models/xgb_pred_test_withState.csv", row.names = FALSE)
+fwrite(xgb_forecast_train, file = "./models/xgb_pred_train_withState.csv", row.names = FALSE)
+fwrite(xgb_forecast_test, file = "./models/xgb_pred_test_withState.csv", row.names = FALSE)
 # save xgb model
 xgb.save(xgb_withStateDemRatio, './models/xgb_model_withStateDemRatio')
 
