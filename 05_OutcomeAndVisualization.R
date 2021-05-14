@@ -1,3 +1,6 @@
+### AGGREGATION AND VISUALIZATION ###
+### Authors: Tim Graf, Kevin Jörg, Moritz Dänliker ###
+
 library(data.table)
 library(leaflet)
 library(mapview)

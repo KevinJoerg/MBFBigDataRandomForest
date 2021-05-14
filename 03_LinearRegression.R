@@ -1,3 +1,6 @@
+### LINEAR REGRESSION ###
+### Authors: Tim Graf, Kevin Jörg, Moritz Dänliker ###
+
 library(data.table)
 library(ff)
 library(ffbase)

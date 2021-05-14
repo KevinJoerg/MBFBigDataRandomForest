@@ -1,18 +1,10 @@
 ### XGBOOST Out-of-memory approach ###
 ### Authors: Tim Graf, Kevin Jörg, Moritz Dänliker ###
 
-"note: 
-Xgboost manages only numeric vectors. Hence we convert all factors to spare matrix with binary format
-
-For many machine learning algorithms, using correlated features is not a good idea. 
-It may sometimes make prediction less accurate, and most of the time make interpretation of the model 
-almost impossible. GLM, for instance, assumes that the features are uncorrelated.
-Fortunately, decision tree algorithms (including boosted trees) are very robust to these features. 
-Therefore we have nothing to do to manage this situation.
-
-Decision trees do not require normalization of their inputs; 
-and since XGBoost is essentially an ensemble algorithm comprised of decision trees, 
-it does not require normalization for the inputs either.
+"Note: 
+This approach uses an out-of-memory strategy, if the dataset is too large to load into RAM. 
+However, some functions such as the parameter search and cross-validation is not possible. 
+Therefore, this file needs input of the optimal parameters of the previous files (04_01_XGB_traintest). Please run that one first. 
 "
 
 # first install libomp by using the termin and the following command: 
