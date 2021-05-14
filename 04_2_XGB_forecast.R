@@ -122,9 +122,9 @@ xgbGrid <- base::expand.grid(nrounds = 100L,
                              max_depth = c(4, 6, 8),
                              colsample_bytree = c(0.1, 0.3, 0.5),
                              eta = c(0.05, 0.1, 0.5),
-                             gamma= 0.5,
-                             min_child_weight = 1,
-                             subsample = 1
+                             gamma= c(0.1, 0.3, 0.5),
+                             min_child_weight = c(0.2, 0.4, 1),
+                             subsample = c(0.1, 0.4, 0.7, 1)
 )
 
 set.seed(0)
@@ -136,7 +136,7 @@ xgb_model = caret::train(
   method = "xgbTree",
   tree_method = 'hist',
   objective = "reg:squarederror", 
-  tuneLength = 100, 
+  tuneLength = 10000, 
 )
 
 
@@ -225,7 +225,7 @@ stopCluster(cl)
 params_xgb_withStateDemRatio <- list(booster = 'dart',
                    objective = "reg:squarederror",
                    eta=xgb_model$bestTune$eta, # learning rate, usually between 0 and 1. makes the model more robust by shrinking the weights on each step
-                   gamma= 0.8, # regularization (prevents overfitting), higher means more penalty for large coef. makes the algo more conservative
+                   gamma= xgb_model$bestTune$gamma, # regularization (prevents overfitting), higher means more penalty for large coef. makes the algo more conservative
                    subsample= xgb_model$bestTune$subsample, # fraction of observations taken to make each tree. the lower the more conservative and more underfitting, less overfitting.
                    max_depth = xgb_model$bestTune$max_depth, # max depth of trees, the more deep the more complex and overfitting
                    min_child_weight = xgb_model$bestTune$min_child_weight, # min number of instances per child node, blocks potential feature interaction and thus overfitting

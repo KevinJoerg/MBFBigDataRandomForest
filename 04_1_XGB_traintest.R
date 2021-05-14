@@ -37,6 +37,7 @@ library(tictoc)
 library(ff)
 library(ffbase)
 library(ffbase2)
+library(DiagrammeR)
 
 
 
@@ -59,7 +60,7 @@ load.ffdf(dir='./ffdfClean2')
 carListingsClean <- data.frame(carListingsClean)
 
 # for performance reasons
-carListingsClean <- carListingsClean[1:1000,]
+#carListingsClean <- carListingsClean[1:10000,]
 
 # delete columns we don't need for the regression
 carListingsClean$StateDemRepRatio <- NULL
@@ -103,7 +104,7 @@ sparse_matrix_test <- model.matrix((DemRepRatio)~.-1, data = test)
 dtrain <- xgb.DMatrix(data = sparse_matrix_train, label = train_target[, 'DemRepRatio'])
 dtest <- xgb.DMatrix(data = sparse_matrix_test, label = test_target[, 'DemRepRatio'])
 
-rm(train_ind, carListingsClean, i, files, smp_size)
+rm(train_ind, carListingsClean, smp_size)
 gc()
 
 colnames(sparse_matrix_train)
@@ -145,8 +146,8 @@ xgbGrid <- base::expand.grid(nrounds = 100L,
                              colsample_bytree = c(0.1, 0.3, 0.5),
                              eta = c(0.05, 0.1, 0.5),
                              gamma= 0.5,
-                             min_child_weight = 1,
-                             subsample = 1
+                             min_child_weight = c(0.2, 0.4, 1),
+                             subsample = c(0.1, 0.4, 0.7, 1)
 )
 
 set.seed(0)
@@ -158,7 +159,7 @@ xgb_model = caret::train(
   method = "xgbTree",
   tree_method = 'hist',
   objective = "reg:squarederror", 
-  tuneLength = 100, 
+  tuneLength = 10000, 
 )
 
 
@@ -254,21 +255,21 @@ params_xgb <- list(booster = 'dart',
                    colsample_bytree = xgb_model$bestTune$colsample_bytree # number of variables per tree, typically between 0.5 - 0.9
 )
 
-# using cross-validation to find optimal nrounds parameter
-xgbcv <- xgb.cv(params = params_xgb,
-                data = dtrain, 
-                nrounds = 150L, 
-                nfold = 5,
-                showsd = T, # whether to show standard deviation of cv
-                stratified = F, 
-                print_every_n = 1, 
-                early_stopping_rounds = 50, # stop if we don't see much improvement
-                maximize = F, # should the metric be maximized?
-                verbose = 2, 
-                tree_method = 'gpu_hist')
-
-# Result of best iteration
-xgb_best_iteration <- xgbcv$best_iteration
+# # using cross-validation to find optimal nrounds parameter
+# xgbcv <- xgb.cv(params = params_xgb,
+#                 data = dtrain, 
+#                 nrounds = 150L, 
+#                 nfold = 5,
+#                 showsd = T, # whether to show standard deviation of cv
+#                 stratified = F, 
+#                 print_every_n = 1, 
+#                 early_stopping_rounds = 50, # stop if we don't see much improvement
+#                 maximize = F, # should the metric be maximized?
+#                 verbose = 2, 
+#                 tree_method = 'hist')
+# 
+# # Result of best iteration
+# xgb_best_iteration <- xgbcv$best_iteration
 
 
 ### MODEL 3: RUN WITH OPTIMAL PARAMETERS ###  -----------------------------
@@ -279,9 +280,10 @@ Rather it does the parallelization WITHIN a single tree by using openMP to creat
 # best is to let out the num threads, as xgboost takes all by default
 xgb <- xgb.train(params = params_xgb, 
                  data = dtrain, 
-                 nrounds = xgb_best_iteration, 
+                 nrounds = 1000L, 
                  watchlist = list(test = dtest, train = dtrain), 
                  maximize = F, 
+                early_stopping_rounds = 50, # stop if we don't see much improvement
                  eval_metric = "rmse", 
                  tree_method = 'hist') # this accelerates the process 
 
@@ -302,14 +304,12 @@ act <- as.numeric(train_target[,'DemRepRatio'])
 pred <- xgb_pred_train$predicted
 rmse_xgb_train <- sqrt(mean((pred - act)^2))
 r2_xgb_train <- 1 - ( sum((act-pred)^2) / sum((act-mean(act))^2) )
-adj_r2_xgb_train <- 1 - ((1 - r2_xgb_train) * (nrow(act) - 1)) / (nrow(act) - ncol(act) - 1)
 
 # metrics for test
 act <- as.numeric(test_target[,'DemRepRatio'])
 pred <- xgb_pred_test$predicted
 rmse_xgb_test <- sqrt(mean((pred - act)^2))
 r2_xgb_test <- 1 - ( sum((act-pred)^2) / sum((act-mean(act))^2) )
-adj_r2_xgb_test <- 1 - ((1 - r2_xgb_train) * (nrow(act) - 1)) / (nrow(act) - ncol(act) - 1)
 
 
 ### PLOTS --------------------------------------------------
@@ -324,10 +324,6 @@ plot_rmse <- ggplot(data = log, aes(x = iter, y = RMSE, color = dataset)) +
   ggtitle('Return Mean Squared Error over iterations')
 plot_rmse
 
-# plot an example tree of all
-xgb.plot.tree(feature_names = names(dtrain), 
-              model = xgb, 
-              trees = 1)
 
 # Plot importance
 importance <- xgb.importance(feature_names = colnames(sparse_matrix_train), model = xgb)
