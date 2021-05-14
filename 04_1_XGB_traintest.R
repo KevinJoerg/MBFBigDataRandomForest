@@ -1,19 +1,20 @@
 ### XGBOOST ###
 ### Authors: Tim Graf, Kevin Jörg, Moritz Dänliker ###
 
-"Note:
-
+"Note on running: 
 This script may not work on computers with little RAM, as the hyperparameter tuning and xgboost use up alot of RAM. 
-If it crashes please try the out-of-memory approach stated in 04_03_XGB_OOM
+If it crashes please try the out-of-memory approach stated in 04_03_XGB_OOM. 
 
+Difference to 04_02: 
+This method does not include the variable state for predictions.
+
+Note on XGBoost: 
 * Xgboost manages only numeric vectors. Hence we convert all factors to spare matrix with binary format
-
 * For many machine learning algorithms, using correlated features is not a good idea. 
 It may sometimes make prediction less accurate, and most of the time make interpretation of the model 
 almost impossible. GLM, for instance, assumes that the features are uncorrelated.
 Fortunately, decision tree algorithms (including boosted trees) are very robust to these features. 
 Therefore we have nothing to do to manage this situation.
-
 * Decision trees do not require normalization of their inputs; 
 and since XGBoost is essentially an ensemble algorithm comprised of decision trees, 
 it does not require normalization for the inputs either.
@@ -38,6 +39,8 @@ library(ff)
 library(ffbase)
 library(ffbase2)
 library(DiagrammeR)
+library(caret)
+library(doParallel)
 
 
 
@@ -114,20 +117,20 @@ colnames(sparse_matrix_test)
 change n to make it work on computers with less power"
 
 # make a subsample
+set.seed(123)
 n = 0.10
 smp_size <- floor(n * nrow(sparse_matrix_train)) 
 train_ind <- base::sample(seq_len(nrow(sparse_matrix_train)), size = smp_size)
 sparse_matrix_train_subsample <- sparse_matrix_train[train_ind,]
 train_target_subsample <- as.numeric(train_target[train_ind, 'DemRepRatio'])
 
-library(caret)
-library(doParallel)
 
-stopCluster()
+# set up parallelization
 cl <- parallel::makePSOCKcluster(detectCores()-1)
 parallel::clusterEvalQ(cl, library(foreach))
 doParallel::registerDoParallel(cl)
 
+# set how hyperparameters should be tested
 xgb_trcontrol <- caret::trainControl(
   method = "cv",
   number = 2,
@@ -138,7 +141,7 @@ xgb_trcontrol <- caret::trainControl(
   trim = TRUE
 )
 
-
+# create the grid to test hyperparameters
 xgbGrid <- base::expand.grid(nrounds = 100L, 
                              max_depth = c(4, 6, 8),
                              colsample_bytree = c(0.1, 0.3, 0.5),
@@ -148,8 +151,8 @@ xgbGrid <- base::expand.grid(nrounds = 100L,
                              subsample = c(0.1, 0.4, 0.7, 1)
 )
 
-set.seed(0)
 
+# train the model with different hyperparameters
 xgb_model = caret::train(
   sparse_matrix_train_subsample, as.double(train_target_subsample),
   trControl = xgb_trcontrol,
@@ -160,7 +163,7 @@ xgb_model = caret::train(
   tuneLength = 10000, 
 )
 
-
+# stop parallelization
 stopCluster(cl)
 
 ### MODEL 1: FIND OPTIMAL PARAMETERS - WITH MLR ###  -----------------------------
@@ -253,7 +256,7 @@ params_xgb <- list(booster = 'dart',
                    colsample_bytree = xgb_model$bestTune$colsample_bytree # number of variables per tree, typically between 0.5 - 0.9
 )
 
-# # using cross-validation to find optimal nrounds parameter
+# # using cross-validation to find optimal nrounds parameter (optional)
 # xgbcv <- xgb.cv(params = params_xgb,
 #                 data = dtrain, 
 #                 nrounds = 150L, 
@@ -406,4 +409,5 @@ fwrite(xgb_pred_test, file = "./models/xgb_pred_test.csv", row.names = FALSE)
 save(params_xgb, file = "./models/xgb_params.RData")
 save(xgb_best_iteration, file = "./models/xgb_best_iteration.RData")
 
+# stop the timer
 toc()

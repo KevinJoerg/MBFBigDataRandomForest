@@ -2,7 +2,7 @@
 ### Authors: Tim Graf, Kevin Jörg, Moritz Dänliker ###
 
 "Note: 
-Here we train and predict the data for counties where we currently do not have any DemRepRatios observed. 
+Here we additionally train and predict the data for counties where we currently do not have any DemRepRatios observed. 
 At the time being of this paper, the data of Democrat / Republicans Ratio on a county level hasn't been published for every county in the US. 
 Thus, we cannot assess the predictive power of the algorithm and need to wait for the official results to be publish. 
 However, we therefore include the DemRepRatio on a state-level and use is as training for the algorithm and forecast. 
@@ -55,6 +55,7 @@ carListingsClean <- carListingsClean[1:1000,]
 # omit the NAs for XGBoost
 carListingsClean <- na.omit(carListingsClean)
 
+
 ### SPLIT TRAINING AND TESTING DATASET ### ----------------------------------------------
 
 # set the seed to make your partition reproducible
@@ -76,7 +77,7 @@ colnames(county_train) = c('index', 'state', 'county')
 county_test <- data.frame(as.numeric(rownames(test)), as.character(test$state), as.character(test$county))
 colnames(county_test) = c('index', 'state', 'county')
 
-# convert categorical factor into dummy variables using one-hot encoding
+# convert categorical factor into dummy variables using one-hot encoding, omit county 
 sparse_matrix_train <- model.matrix(county~.-1, data = train)
 sparse_matrix_test <- model.matrix(county~.-1, data = test)
 
@@ -92,6 +93,7 @@ sparse_matrix_test <- sparse_matrix_test[,-1 ]
 dtrain <- xgb.DMatrix(data = sparse_matrix_train, label = train_target)
 dtest <- xgb.DMatrix(data = sparse_matrix_test, label = test_target)
 
+# remove unnecessary files
 rm(train_ind, carListingsClean)
 gc()
 
@@ -101,20 +103,22 @@ gc()
 change n to make it work on computers with less power"
 
 # make a subsample
+set.seed(123)
 n = 0.10
 smp_size <- floor(n * nrow(sparse_matrix_train)) 
 train_ind <- base::sample(seq_len(nrow(sparse_matrix_train)), size = smp_size)
 sparse_matrix_train_subsample <- sparse_matrix_train[train_ind,]
 train_target_subsample <- as.numeric(train_target[train_ind,])
 
-stopCluster()
+# set up parallelization
 cl <- parallel::makePSOCKcluster(detectCores()-1)
 parallel::clusterEvalQ(cl, library(foreach))
 doParallel::registerDoParallel(cl)
 
+# set how hyperparameters should be tested
 xgb_trcontrol <- caret::trainControl(
   method = "cv",
-  number = 2,
+  number = 5, # number of folds
   allowParallel = TRUE,
   verboseIter = TRUE,
   returnData = FALSE,
@@ -122,7 +126,7 @@ xgb_trcontrol <- caret::trainControl(
   trim = TRUE
 )
 
-
+# create the grid to test hyperparameters
 xgbGrid <- base::expand.grid(nrounds = 100L, 
                              max_depth = c(4, 6, 8, 10),
                              colsample_bytree = c(0.1, 0.3, 0.5),
@@ -132,8 +136,7 @@ xgbGrid <- base::expand.grid(nrounds = 100L,
                              subsample = c(0.1, 0.4, 0.7, 1)
 )
 
-set.seed(0)
-
+# train the model with different hyperparamters
 xgb_model = caret::train(
   sparse_matrix_train_subsample, as.double(train_target_subsample),
   trControl = xgb_trcontrol,
@@ -144,11 +147,11 @@ xgb_model = caret::train(
   tuneLength = 10000L, 
 )
 
-
+# stop parallelization
 stopCluster(cl)
 
 ### MODEL 1: FIND OPTIMAL PARAMETERS - WITH MLR ###  -----------------------------
-"Note: This worked on a MacBook. However, it still consumes a lot of RAM and computing time"
+"Note: This worked on a MacBook, not on Linux or Windows. However, it still consumes a lot of RAM and computing time"
 # 
 # # make the subsample
 # n = 0.01
@@ -237,7 +240,8 @@ params_xgb_withStateDemRatio <- list(booster = 'dart',
                    colsample_bytree = xgb_model$bestTune$colsample_bytree # number of variables per tree, typically between 0.5 - 0.9
 )
 
-# # using cross-validation to find optimal nrounds parameter
+
+# # using cross-validation to find optimal nrounds parameter (optional)
 # xgbcv <- xgb.cv(params = params_xgb_withStateDemRatio,
 #                 data = dtrain, 
 #                 nrounds = 150, 
@@ -296,9 +300,6 @@ rownames(results_xgb_withStateDemRatio) <- c("RMSE", "R2", "ADJ_R2")
 # print results
 results_xgb_withStateDemRatio
 
-str(train_target)
-str(xgb_pred_train)
-
 # merge predicted dataframe by the initial index
 xgb_pred_train.df <- data.frame(train_target, xgb_pred_train)
 xgb_pred_train.df$index <- as.numeric(rownames(xgb_pred_train.df))
@@ -318,8 +319,8 @@ xgb_pred_train.df <- xgb_pred_train.df %>%
   summarise(forecast = mean(predicted, na.rm = TRUE), actual = mean(actual, na.rm = TRUE)) %>%
   ungroup
 
+# filter only for predictions where we had more than 100 observations
 xgb_pred_train.df <- xgb_pred_train.df[forecast.count$obs_per_forecast > 100, ]
-
 
 # merge predicted dataframe by the initial index
 xgb_pred_test.df <- data.frame(test_target, xgb_pred_test)
@@ -340,10 +341,13 @@ xgb_pred_test.df <- xgb_pred_test.df %>%
   summarise(forecast = mean(predicted, na.rm = TRUE), actual = mean(actual, na.rm = TRUE)) %>%
   ungroup
 
+# filter only for predictions where we had more than 100 observations
 xgb_pred_test.df <- xgb_pred_test.df[forecast.count$obs_per_forecast > 100, ]
 
 
 # PLOTS --------------------------------------------------
+
+gc()
 
 # from wide to long dataframe needed for plotting
 log <- xgb_withStateDemRatio$evaluation_log %>% gather(key = 'dataset', value = 'RMSE', -iter)
@@ -466,8 +470,8 @@ xgb_forecast <- xgb_forecast %>%
 # Only keep forecasts that are based on at least 100 observations
 xgb_forecast <- xgb_forecast[forecast.count$obs_per_forecast > 100, ]
 
-### SAVE ###--------------------------------------------
 
+### SAVE ###--------------------------------------------
 
 # make dir
 dir.create('./plots/')
@@ -485,19 +489,18 @@ ggsave('plot_xgb_importance_withState.png', path = './Plots/', plot = plot_xgb_i
 xgb.save(xgb_withStateDemRatio, "./models/xgboost_withState.model")
 
 # save results
-fwrite(xgb_forecast_train, file = "./models/xgb_pred_train_withState.csv", row.names = FALSE)
-fwrite(xgb_forecast_test, file = "./models/xgb_pred_test_withState.csv", row.names = FALSE)
+fwrite(xgb_pred_train.df, file = "./models/xgb_pred_train_withState.csv", row.names = FALSE)
+fwrite(xgb_pred_test.df, file = "./models/xgb_pred_test_withState.csv", row.names = FALSE)
+fwrite(xgb_forecast, file = './models/xgb_forecast.csv', row.names = FALSE)
+
 # save xgb model
 xgb.save(xgb_withStateDemRatio, './models/xgb_model_withStateDemRatio')
 
 # save xgb files
-save(xgb_best_iteration_withStateDemRatio, file = './models/xgb_best_iteration_withStateDemRatio.RData')
+save(xgb_best_iteration_withStateDemRatio, file = './models/xgb_best_iteration_withStateDemRatio.RData') 
 save(xgb_withStateDemRatio, file = './models/xgb_withStateDemRatio.RData')
 save(params_xgb_withStateDemRatio, file = "./models/xgb_params_withStateDemRatio.RData")
 save(results_xgb_withStateDemRatio, file = "./models/xgb_results_withStateDemRatio.RData")
 
-# save output
-fwrite(xgb_forecast, file = './models/xgb_forecast.csv', row.names = FALSE)
-
-
+# stop timer
 toc()
