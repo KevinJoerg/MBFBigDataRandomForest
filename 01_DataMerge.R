@@ -29,7 +29,7 @@ getwd()
 # start the timer
 tic()
 
-# Prepare for loading with ff, read in Used Car CSV ****************************
+### Prepare for loading with ff, read in Used Car CSV --------------------------
 
 # Original file
 carListings.path <- 'data/used_cars_data.csv'
@@ -49,7 +49,7 @@ carListings <- read.csv.ffdf(file= carListings.path,
 # Saving it this way names the files by colnames
 save.ffdf(carListings, dir = './ffdf', overwrite = TRUE)
 
-# From here actually start if data is prepared ********************************
+### From here actually start if data is prepared -------------------------------
 
 # Load prepared car data (to continue from here)
 load.ffdf(dir='./ffdf')
@@ -63,7 +63,7 @@ votingdata <- fread(votingdata.counties.path)
 votingdata.state.path <- 'data/1976-2020-president.csv'
 votingdata.state <- fread(votingdata.state.path)
 
-# Aggregate voting data to county level democratic / republican ratio **********
+### Aggregate voting data to county level democratic / republican ratio --------
 
 # Add up votes of counties
 votingdata.bycounty <- votingdata %>% 
@@ -83,13 +83,15 @@ votingdata.bycounty.byparty[is.na(votingdata.bycounty.byparty)] <- 0
 
 # Calculate ratio between democratic and republican votes
 votingdata.ratio <- data.frame(matrix(c(votingdata.bycounty.byparty$county_name, 
-                                        votingdata.bycounty.byparty$DEMOCRAT / (votingdata.bycounty.byparty$DEMOCRAT + votingdata.bycounty.byparty$REPUBLICAN)), ncol = 2)) %>%
+                                        votingdata.bycounty.byparty$DEMOCRAT / 
+                                          (votingdata.bycounty.byparty$DEMOCRAT 
+                                           + votingdata.bycounty.byparty$REPUBLICAN)), ncol = 2)) %>%
   'names<-'(c('county', 'DemocratRepublicanRatio'))
 
 # Change county names to lower
 votingdata.ratio$county <- unlist(lapply(votingdata.ratio$county, tolower))
 
-# Create state level democratic / republican ratio *****************************
+### Create state level democratic / republican ratio ---------------------------
 
 # Only keep 2020 results
 votingdata.state <- votingdata.state[votingdata.state$year == 2020]
@@ -104,7 +106,9 @@ votingdata.bystate.byparty$REPUBLICAN <- as.numeric(votingdata.bystate.byparty$R
 
 # Calculate ratio between democratic and republican votes
 votingdata.state.ratio <- data.frame(matrix(c(votingdata.bystate.byparty$state, 
-                                              votingdata.bystate.byparty$DEMOCRAT / (votingdata.bystate.byparty$DEMOCRAT + votingdata.bystate.byparty$REPUBLICAN)), ncol = 2)) %>%
+                                              votingdata.bystate.byparty$DEMOCRAT 
+                                              / (votingdata.bystate.byparty$DEMOCRAT 
+                                                 + votingdata.bystate.byparty$REPUBLICAN)), ncol = 2)) %>%
   'names<-'(c('state', 'DemocratRepublicanRatio'))
 
 # Change county names to lower
@@ -140,52 +144,6 @@ save.ffdf(carListingsClean, dir = './ffdfClean', overwrite = TRUE)
 
 # end the timer
 toc()
-
-## Analysis ********************************************************************
-# 
-# # Load the clean data
-# rm(list=ls())
-# load.ffdf(dir='./ffdfClean')
-# 
-# # Create a map of the listings, to show the distribution
-# 
-# # Leaflet needs numeric vectors
-# map.lat <- carListingsClean[['latitude']][]
-# map.long <- carListingsClean[['longitude']][]
-# map.ratios <- carListingsClean[['DemRepRatio']][]
-# 
-# class(map.ratios)
-# 
-# # Only show 10k random listings, for performance
-# samp <- sample(1:length(map.lat), 10000)
-# map.lat <- map.lat[samp]
-# map.long <- map.long[samp]
-# map.ratios <- map.ratios[samp]
-# 
-# # Create a color range for the markers
-# pal.quantile <- colorQuantile("RdYlBu", 
-#                               domain =  map.ratios, reverse = FALSE, n = 10)
-# colors.quant <- pal.quantile(map.ratios)
-# 
-# # Simple visualization
-# map <- leaflet() %>%
-#   # Set view on center of listings
-#   setView(lng = (max(map.long) + min(map.long)) / 2, lat = (max(map.lat) + min(map.lat)) / 2, zoom = 3) %>%
-#   # Add a custom base map
-#   addProviderTiles(providers$Stamen.TonerLite)
-# 
-# # Add the data points as circles on the map, also add a legend
-# map <- addCircles(map, lng = map.long,
-#                   lat = map.lat,
-#                   radius = 400,
-#                   stroke = F, fillOpacity = 0.45, fill = T, 
-#                   fillColor =  colors.quant) %>%
-#   addLegend(pal = pal.quantile, values = map.ratios, opacity = 1, 
-#             title = "Dem to Rep Vote Ratio")
-# 
-# # Show the map
-# map
-
 
 
 

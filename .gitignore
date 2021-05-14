@@ -20,4 +20,8 @@
 **.cache
 **.page
 
+# Exclude js and css files from Leaflet
+**.js
+**.css
+
 

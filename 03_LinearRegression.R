@@ -80,16 +80,16 @@ summary(olsgpu)
 summary(ols)
 
 # plot residuals
-plot(ols$residuals)
+plot(olsgpu$residuals)
 
 # Breusch Pagan test for heteroscedasticity
 # H0: Homoscedasticity
 # H1: Heteroscedasticity
-bptest(ols)
+bptest(olsgpu)
 # There is heteroscedasticity.
 
 # robust standard errors
-ols.robust <- coeftest(ols, vcov = vcovHC(ols, type = "HC0"))
+ols.robust <- coeftest(olsgpu, vcov = vcovHC(olsgpu, type = "HC0"))
 ols.robust
 
 # Store some interesting ones
@@ -101,21 +101,21 @@ saveRDS(ols.robust.short, file='Pictures_presentation/OLSOutput.rds')
 # The Q-Q plot, or quantile-quantile plot, is a graphical tool to help us assess 
 # if a set of data plausibly came from some theoretical distribution such as a 
 # Normal or exponential
-qqnorm(ols$residuals, pch = 1, frame = FALSE)
-qqline(ols$residuals, col = "steelblue", lwd = 2)
+qqnorm(olsgpu$residuals, pch = 1, frame = FALSE)
+qqline(olsgpu$residuals, col = "steelblue", lwd = 2)
 
-# check multicollinearity
+# check multicollinearity (needs normal lm)
 ols_vif_tol(ols)
 
 # Relative importance of independent variables in determining Y. How much
 # each variable uniquely contributes to R2 over and above that which can be
-# accounted for by the other predictors.
-ols_correlations(ols)
+# accounted for by the other predictors. (needs normal lm)
+ols_correlations(ols) 
 
 ###  In sample prediction ------------------------------------------------------
 
 # In sample
-forecast_evaluate <- predict(ols, carListings.df.withCounty.train)
+forecast_evaluate <- predict(olsgpu, carListings.df.withCounty.train)
 forecast_evaluate <- as.data.frame(cbind(cbind(as.character(stateTrain.train), 
                                                as.character(countyTrain.train)), 
                                          forecast_evaluate))
@@ -160,7 +160,7 @@ fwrite(forecast_evaluate, 'models/OLS_DemRepRatiosEvaluateForecastInSample.csv')
 
 
 ###  Out of sample prediction --------------------------------------------------
-forecast_evaluate <- predict(ols, carListings.df.withCounty.test)
+forecast_evaluate <- predict(olsgpu, carListings.df.withCounty.test)
 forecast_evaluate <- as.data.frame(cbind(cbind(as.character(stateTrain.test), 
                                                as.character(countyTrain.test)), 
                                          forecast_evaluate))
@@ -204,7 +204,7 @@ summary(olsTest)
 fwrite(forecast_evaluate, 'models/OLS_DemRepRatiosEvaluateForecast.csv')
 
 ### Forecast -------------------------------------------------------------------
-forecast <- predict(ols, carListings.df.forecast)
+forecast <- predict(olsgpu, carListings.df.forecast)
 forecast <- as.data.frame(cbind(cbind(as.character(stateForecast), 
                                       as.character(countyForecast)), forecast))
 
