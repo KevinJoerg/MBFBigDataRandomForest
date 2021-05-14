@@ -24,6 +24,10 @@ library(tidyverse)
 library(tictoc)
 library(ff)
 library(ffbase)
+library(ggplot2)
+library(tidyr)
+library(caret)
+library(doParallel)
 
 
 ### SETUP ### ----------------------------------------------
@@ -49,11 +53,10 @@ carListingsClean.forecast <- carListingsClean[is.na(carListingsClean$DemRepRatio
 #carListingsClean <- carListingsClean[1:10000,]
 
 # delete columns we don't need for the regression
-carListingsClean$county <- NULL
+#carListingsClean$county <- NULL
 
 # omit the NAs for XGBoost
 carListingsClean <- na.omit(carListingsClean)
-
 
 ### SPLIT TRAINING AND TESTING DATASET ### ----------------------------------------------
 
@@ -70,9 +73,14 @@ test <- carListingsClean[-train_ind, ]
 train$is_new <- as.factor(train$is_new)
 test$is_new <- as.factor(test$is_new)
 
+# keep county for later
+county_train <- merge(as.numeric(rownames(train)), train$county)
+head(county_train)
+county_test <- cbind(rownames(test), test$county)
+
 # convert categorical factor into dummy variables using one-hot encoding
-sparse_matrix_train <- model.matrix(~.-1, data = train)
-sparse_matrix_test <- model.matrix(~.-1, data = test)
+sparse_matrix_train <- model.matrix(county~.-1, data = train)
+sparse_matrix_test <- model.matrix(county~.-1, data = test)
 
 # define training label = dependent variable
 train_target = as.matrix((sparse_matrix_train[,'DemRepRatio']))
@@ -100,9 +108,6 @@ smp_size <- floor(n * nrow(sparse_matrix_train))
 train_ind <- base::sample(seq_len(nrow(sparse_matrix_train)), size = smp_size)
 sparse_matrix_train_subsample <- sparse_matrix_train[train_ind,]
 train_target_subsample <- as.numeric(train_target[train_ind,])
-
-library(caret)
-library(doParallel)
 
 stopCluster()
 cl <- parallel::makePSOCKcluster(detectCores()-1)
@@ -293,6 +298,82 @@ rownames(results_xgb_withStateDemRatio) <- c("RMSE", "R2", "ADJ_R2")
 # print results
 results_xgb_withStateDemRatio
 
+str(train_target)
+str(xgb_pred_train)
+
+# merge predicted dataframe by the initial index
+xgb_pred_train.df <- cbind(train_target, xgb_pred_train)
+left_join(xgb_pred_train.df, train$state)
+
+
+# PLOTS --------------------------------------------------
+
+# from wide to long dataframe needed for plotting
+log <- xgb_withStateDemRatio$evaluation_log %>% gather(key = 'dataset', value = 'RMSE', -iter)
+
+# plot RMSE improvement 
+plot_rmse <- ggplot(data = log, aes(x = iter, y = RMSE, color = dataset)) +
+  geom_point() +
+  xlab('iteration') +
+  ggtitle('Return Mean Squared Error over iterations')
+plot_rmse
+
+
+# Plot importance
+importance <- xgb.importance(feature_names = colnames(sparse_matrix_train), model = xgb_withStateDemRatio)
+xgb_importance <- xgb.plot.importance(importance_matrix = importance, top_n = 15)
+plot_xgb_importance <- xgb_importance %>%
+  mutate(Feature = fct_reorder(Feature, Importance)) %>%
+  ggplot(aes(x=Feature, y=Importance)) +
+  geom_bar(stat="identity", fill="#f68060", alpha=.6, width=.4) +
+  coord_flip() +
+  xlab("") +
+  theme_bw() +
+  ggtitle('Feature Importance Plot for XG-Boost')
+plot_xgb_importance
+
+# define top 3 relevant variables
+variable1 = xgb_importance$Feature[1]
+variable2 = xgb_importance$Feature[2]
+variable3 = xgb_importance$Feature[3]
+
+# merge dataframes
+merged_df <- data.frame(cbind(xgb_pred_test, test_target)) 
+colnames(merged_df) <- c('predicted', 'actual')
+merged_df <- merged_df[order(merged_df$actual),]
+row.names(merged_df) <- NULL
+
+# Plot predicted vs. actual 
+colors <- c("actual" = "red", "predicted" = "blue")
+plot_xgb <- ggplot(data = merged_df, aes(x = as.numeric(row.names(merged_df)))) +
+  geom_point(aes(y = predicted, color = 'predicted')) +
+  geom_point(aes(y = actual, color = 'actual')) +
+  ggtitle('Actual vs. predicted values') + 
+  scale_color_manual(values = colors) +
+  labs(x = 'Index', y = 'DemRepRatio')
+plot_xgb
+
+# create datafrome for plotting
+test_sparse <- model.matrix(~.-1, data = test)
+
+# Plot most Top 1 variable vs. actual 
+plot_v1 <- ggplot(data = data.frame(test_sparse)) +
+  geom_point(aes(x = !!ensym(variable1), y = DemRepRatio)) +
+  ggtitle(paste0('DemRepRatio vs. ', variable1))
+plot_v1
+
+# Plot most Top 2 variable vs. actual 
+plot_v2 <- ggplot(data = data.frame(test_sparse)) +
+  geom_point(aes(x = !!ensym(variable2), y = DemRepRatio)) +
+  ggtitle(paste0('DemRepRatio vs. ', variable2))
+plot_v2
+
+# Plot most Top 3 variable vs. actual 
+plot_v3 <- ggplot(data = data.frame(test_sparse)) +
+  geom_point(aes(x = !!ensym(variable3), y = DemRepRatio)) +
+  ggtitle(paste0('DemRepRatio vs. ', variable3))
+plot_v3
+
 
 ### TESTING THE MODEL ON DATA WITH NO OBSERVATIONS FOR DEM-REP-RATIOS ###--------------------------------------------
 
@@ -307,7 +388,6 @@ state <- as.character(carListingsClean.forecast.dt$state)
 county <- as.character(carListingsClean.forecast.dt$county)
 df <- data.frame(cbind(index, state, county))
 df$index <- as.numeric(index)
-
 
 # add and delete variables in ffdf
 carListingsClean.forecast$index <- as.ff(index)
@@ -356,6 +436,25 @@ xgb_forecast <- xgb_forecast[forecast.count$obs_per_forecast > 100, ]
 
 ### SAVE ###--------------------------------------------
 
+
+# make dir
+dir.create('./plots/')
+dir.create('./models/')
+
+# save plot
+ggsave('plot_rmse_withState.png', path = './Plots/', plot = plot_rmse, device = 'png')
+ggsave('plot_xgb_v1_withState.png', path = './Plots/', plot = plot_v1, device = 'png')
+ggsave('plot_xgb_v2_withState.png', path = './Plots/', plot = plot_v2, device = 'png')
+ggsave('plot_xgb_v3_withState.png', path = './Plots/', plot = plot_v3, device = 'png')
+ggsave('plot_xgb.png_withState', path = './Plots/', plot = plot_xgb, device = 'png')
+ggsave('plot_xgb_importance_withState.png', path = './Plots/', plot = plot_xgb_importance, device = 'png')
+
+# save model to local file
+xgb.save(xgb_withStateDemRatio, "./models/xgboost_withState.model")
+
+# save results
+fwrite(xgb_pred_train, file = "./models/xgb_pred_train_withState.csv", row.names = FALSE)
+fwrite(xgb_pred_test, file = "./models/xgb_pred_test_withState.csv", row.names = FALSE)
 # save xgb model
 xgb.save(xgb_withStateDemRatio, './models/xgb_model_withStateDemRatio')
 
