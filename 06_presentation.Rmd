@@ -292,6 +292,12 @@ map
 
 ## Actual vs. predicted values (Linear)
 
+<center>
+
+![](./plots/plot_ols_actual_prediction.png){width=70%}
+
+</center>
+
 ## Actual vs. predicted values (XGBoost)
 
 <center>

@@ -2,6 +2,7 @@ library(data.table)
 library(leaflet)
 library(mapview)
 library(raster)
+library(ggplot2)
 
 rm(list = ls())
 
@@ -87,6 +88,25 @@ row.names(performance_metrics) <- c('R2 in Sample', 'Adjusted R2 in Sample', 'RM
 
 # Save for presentation
 saveRDS(performance_metrics, 'Pictures_presentation/performance_metrics.rds')
+
+# OLS actual vs predicted
+# merge dataframes
+merged_df <- DemRepRatiosOLSEvaluate[,c('forecast', 'DemRepRatio')]
+colnames(merged_df) <- c('predicted', 'actual')
+merged_df <- merged_df[order(merged_df$actual),]
+row.names(merged_df) <- NULL
+
+# Plot predicted vs. actual 
+colors <- c("actual" = "red", "predicted" = "blue")
+plot_ols <- ggplot(data = merged_df, aes(x = as.numeric(row.names(merged_df)))) +
+  geom_point(aes(y = predicted, color = 'predicted')) +
+  geom_point(aes(y = actual, color = 'actual')) +
+  ggtitle('Actual vs. predicted values OLS') + 
+  scale_color_manual(values = colors) +
+  labs(x = 'Index', y = 'DemRepRatio')
+plot_ols
+
+ggsave('plot_ols_actual_prediction.png', path = './Plots/', plot = plot_ols, device = 'png')
 
 ### Visualization --------------------------------------------------------------
 
