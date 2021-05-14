@@ -122,14 +122,14 @@ But are those socio-economic gaps also visible when it comes to the American's l
     
     <font size="-0.3">
     
-    + 3 million cars xlisted on Cargurus as of Sept. 2020 in 1338/3006 counties
+    + 3 million cars listed on Cargurus as of Sept. 2020 in 1338/3006 counties
     + Each car reported with 66 characteristics
     + resulting in a total of ~200 million data points
     
     </font>
   **Total file size of ~9.3GB**
 
-2. Two data sets for the voting outcome on a Precinct level and on a State level ***[MIT Election Lab]***
+2. Two data sets for the voting outcome on a precinct- and state level ***(MIT Election Lab)***
 
     <font size="-0.3">
 
@@ -144,15 +144,16 @@ But are those socio-economic gaps also visible when it comes to the American's l
 ### **Merging:**
 
 
-Problem : County level voting data vs. longitudonale/lattitudonale level car data
+Problem : county level voting data vs. latitudonal & longitudona level car data
 
 
-Solution: Package 'jvamisc' maps latitudinal & longitudinal car data to county
+Solution: package 'jvamisc' maps latitudinal & longitudinal car data to county
 
 ### **Cleaning approach**
 
-1. Strain splitting, variable type definition and data types were set
-2. Visually identified outliers were excluded with an ff out-of-memory approach
+1. Omitting variables with >20% NAs
+2. String splitting, variable type definition and data type setting
+3. Outliers were excluded by visual identification
     <style>
   .col2 {
     columns: 2 200px;         /* number of columns and width in pixels*/
@@ -205,6 +206,7 @@ $\frac{democratic\:votes}{democratic\:votes + republican\:votes}$
 </style>
 <font size="-0.5">
 <div class="col2">
+* State democratic to republican voter outcome (factor)
 * Is new (if car is new or pre-owned)
 * Price
 * Fuel economy city (fuel consumption in the city)
@@ -213,9 +215,9 @@ $\frac{democratic\:votes}{democratic\:votes + republican\:votes}$
 
 * Length
 * Max seating
-* Body type
-* Brand name
-* State
+* Body type (factor)
+* Brand name (factor)
+* State (factor)
 </div>
 </font>
 --> **Total sample size:** 2.6mio observations
@@ -232,18 +234,21 @@ $\frac{democratic\:votes}{democratic\:votes + republican\:votes}$
 ## Analytical approaches
 
 **Linear regression** 
+
 Normalized values were used
   
   - on CPU
   - on GPU
     - gpuLm function from package 'GPUtools'
-    - CUDA for INVIDIA GPUs *(downfall: does not work on other GPUs)*
+    - CUDA for NVIDIA GPUs *(downfall: does not work on other GPUs)*
 
 **XGBoost**
+
 Gradient boosting tree-technique using parallelization of computation by default & deriving predictions from bootstrap aggregation
 
   - In RAM with approximated solutions ("hist" method)
-  - Out-of-Memory
+    - Parallelized hyperparameter optimization
+  - Out-of-Memory ("hist" method)
 
 
 ## Linear regression coefficients and robustness
@@ -256,14 +261,17 @@ ols.coefficients
 <center>
 ![](./plots/plot_xgb_importance_withState.png){width=70%}
 </center>
-## Train Test
+## Results of the two prediction algorithms
 
-Show table here with R^2 etc. of train and test samples for both methodologies
+* The data set was split into a training set (75% of observations) and a sample set (25% of observations)
+
 ```{r mysize=TRUE, size='tiny'}
 performance_metrics
 ```
 
 ## Results with XGBoost prediction
+
+Prediction of Dem_Rep_Ratio only for counties where results were not yet fully processed by the MIT election lab
 
 <center>
 ```{r}
@@ -277,6 +285,7 @@ map
 * MIT Election Lab Voting Data: https://github.com/MEDSL/2020-elections-official
 * State Level Election Outcome: https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/42MVDX
 
+# Appendix
 
 ## XGBoost: Concept
 <center>
@@ -307,6 +316,28 @@ map
 
 
 ## XGBoost number of trees optimization
+<center>
 
 ![](./plots/plot_rmse_withState.png){width=70%}
+</center>
 
+## XGBoost top 1 variable
+
+<center>
+
+![](./plots/plot_xgb_v1_withState.png){width=70%}
+</center>
+
+## XGBoost top 2 variable
+
+<center>
+
+![](./plots/plot_xgb_v2_withState.png){width=70%}
+</center>
+
+## XGBoost top 3 variable
+
+<center>
+
+![](./plots/plot_xgb_v3_withState.png){width=70%}
+</center>
