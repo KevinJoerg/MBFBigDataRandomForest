@@ -254,7 +254,7 @@ ols.coefficients
 
 ## XGBoost parameter importance plot
 <center>
-![](./plots/plot_xgb_importance.png){width=40%}
+![](./plots/plot_xgb_importance_withState.png){width=70%}
 </center>
 ## Train Test
 
@@ -290,14 +290,17 @@ map
 ![](./plots/OLSForecastHiRes.png){width=92%}
 </center>
 
+## Actual vs. predicted values (Linear)
+
 ## Actual vs. predicted values (XGBoost)
 
 <center>
 
-![](./plots/plot_xgb.png){width=50%}
+![](./plots/plot_xgb_withState.png){width=70%}
 </center>
+
 
 ## XGBoost number of trees optimization
 
-
+![](./plots/plot_rmse_withState.png){width=70%}
 
