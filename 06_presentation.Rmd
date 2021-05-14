@@ -1,7 +1,7 @@
 ---
 title: "Used car data as predictor for US-Presidential election outcomes"
 author: "**Group Random Forest**: Kevin Jörg, Moritz Dändliker, Tim Graf"
-date: "Mai 20^th^ 2021"
+date: "May 20^th^ 2021"
 output:  
   ioslides_presentation:
     widescreen: true
