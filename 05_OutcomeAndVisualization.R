@@ -58,26 +58,26 @@ rmse <- function(actual, predicted){
 r2_ols_in_sample <- R2(DemRepRatiosOLSEvaluateInSample$DemRepRatio, DemRepRatiosOLSEvaluateInSample$forecast)
 r2_adjusted_ols_in_sample <- adjusted_R2(DemRepRatiosOLSEvaluateInSample$DemRepRatio, DemRepRatiosOLSEvaluateInSample$forecast, n_observations, n_variables)
 rmse_ols_in_sample <- rmse(DemRepRatiosOLSEvaluateInSample$DemRepRatio, DemRepRatiosOLSEvaluateInSample$forecast)
-ols_metrics_in_sample <- c(r2_ols_in_sample, r2_adjusted_ols_in_sample, rmse_ols_in_sample)
+ols_metrics_in_sample <- round(c(r2_ols_in_sample, r2_adjusted_ols_in_sample, rmse_ols_in_sample),digits = 5)
 
 # OLS out of sample
 r2_ols <- R2(DemRepRatiosOLSEvaluate$DemRepRatio, DemRepRatiosOLSEvaluate$forecast)
 r2_adjusted_ols <- adjusted_R2(DemRepRatiosOLSEvaluate$DemRepRatio, DemRepRatiosOLSEvaluate$forecast, n_observations, n_variables)
 rmse_ols <- rmse(DemRepRatiosOLSEvaluate$DemRepRatio, DemRepRatiosOLSEvaluate$forecast)
-ols_metrics_out_of_sample <- c(r2_ols, r2_adjusted_ols, rmse_ols)
+ols_metrics_out_of_sample <- round(c(r2_ols, r2_adjusted_ols, rmse_ols),digits = 5)
 ols_computation_time <- '1.9 Seconds'
 
 # XGB in sample
 r2_xgb_in_sample <- R2(DemRepRatiosXGBEvaluateInSample$actual, DemRepRatiosXGBEvaluateInSample$predicted)
 r2_adjusted_xgb_in_sample <- adjusted_R2(DemRepRatiosXGBEvaluateInSample$actual, DemRepRatiosXGBEvaluateInSample$predicted, n_observations, n_variables)
 rmse_xgb_in_sample <- rmse(DemRepRatiosXGBEvaluateInSample$actual, DemRepRatiosXGBEvaluateInSample$predicted)
-xgb_metrics_in_sample <- c(r2_xgb_in_sample, r2_adjusted_xgb_in_sample, rmse_xgb_in_sample)
+xgb_metrics_in_sample <- round(c(r2_xgb_in_sample, r2_adjusted_xgb_in_sample, rmse_xgb_in_sample),digits = 5)
 
 # XGB out of sample
 r2_xgb <- R2(DemRepRatiosXGBEvaluate$actual, DemRepRatiosXGBEvaluate$predicted)
 r2_adjusted_xgb <- adjusted_R2(DemRepRatiosXGBEvaluate$actual, DemRepRatiosXGBEvaluate$predicted, n_observations, n_variables)
 rmse_xgb <- rmse(DemRepRatiosXGBEvaluate$actual, DemRepRatiosXGBEvaluate$predicted)
-xgb_metrics_out_of_sample <- c(r2_xgb, r2_adjusted_xgb, rmse_xgb)
+xgb_metrics_out_of_sample <- round(c(r2_xgb, r2_adjusted_xgb, rmse_xgb),digits = 5)
 xgb_computation_time <- '63.9 Minutes'
 
 # Create a dataframe of the observations
