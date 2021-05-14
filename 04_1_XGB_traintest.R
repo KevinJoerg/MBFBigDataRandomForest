@@ -116,7 +116,7 @@ colnames(sparse_matrix_test)
 change n to make it work on computers with less power"
 
 # make a subsample
-n = 0.05
+n = 0.10
 smp_size <- floor(n * nrow(sparse_matrix_train)) 
 train_ind <- base::sample(seq_len(nrow(sparse_matrix_train)), size = smp_size)
 sparse_matrix_train_subsample <- sparse_matrix_train[train_ind,]
@@ -390,7 +390,7 @@ dir.create('./plots/')
 dir.create('./models/')
 
 # save plot
-ggsave('plot_rmse', path = './Plots/', plot = plot_rmse, device = 'png')
+ggsave('plot_rmse.png', path = './Plots/', plot = plot_rmse, device = 'png')
 ggsave('plot_xgb_v1.png', path = './Plots/', plot = plot_v1, device = 'png')
 ggsave('plot_xgb_v2.png', path = './Plots/', plot = plot_v2, device = 'png')
 ggsave('plot_xgb_v3.png', path = './Plots/', plot = plot_v3, device = 'png')
