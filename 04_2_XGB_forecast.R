@@ -24,7 +24,6 @@ library(tidyverse)
 library(tictoc)
 library(ff)
 library(ffbase)
-library(ffbase2)
 
 
 ### SETUP ### ----------------------------------------------
@@ -47,7 +46,7 @@ load.ffdf(dir='./ffdfClean2')
 carListingsClean.forecast <- carListingsClean[is.na(carListingsClean$DemRepRatio), ]
 
 # for performance reasons
-carListingsClean <- carListingsClean[1:1000,]
+#carListingsClean <- carListingsClean[1:10000,]
 
 # delete columns we don't need for the regression
 carListingsClean$county <- NULL
@@ -71,13 +70,17 @@ test <- carListingsClean[-train_ind, ]
 train$is_new <- as.factor(train$is_new)
 test$is_new <- as.factor(test$is_new)
 
-# define training label = dependent variable
-train_target = as.matrix((train[,'DemRepRatio']))
-test_target = as.matrix((test[,'DemRepRatio']))
-
 # convert categorical factor into dummy variables using one-hot encoding
-sparse_matrix_train <- model.matrix((DemRepRatio)~.-1, data = train)
-sparse_matrix_test <- model.matrix((DemRepRatio)~.-1, data = test)
+sparse_matrix_train <- model.matrix(~.-1, data = train)
+sparse_matrix_test <- model.matrix(~.-1, data = test)
+
+# define training label = dependent variable
+train_target = as.matrix((sparse_matrix_train[,'DemRepRatio']))
+test_target = as.matrix((sparse_matrix_test[,'DemRepRatio']))
+
+# omit DemRepRatio
+sparse_matrix_train <- sparse_matrix_train[,-1 ]
+sparse_matrix_test <- sparse_matrix_test[,-1 ]
 
 # Create a dense matrix for XGBoost
 dtrain <- xgb.DMatrix(data = sparse_matrix_train, label = train_target)
@@ -87,13 +90,12 @@ rm(train_ind, carListingsClean)
 gc()
 
 
-
 ### MODEL 1: FIND OPTIMAL PARAMETERS - WITH CARET ###  -----------------------------
 "Note: This method uses a lot of memory, thus we do hyperparameter tuning on a subsample
 change n to make it work on computers with less power"
 
 # make a subsample
-n = 0.05
+n = 0.10
 smp_size <- floor(n * nrow(sparse_matrix_train)) 
 train_ind <- base::sample(seq_len(nrow(sparse_matrix_train)), size = smp_size)
 sparse_matrix_train_subsample <- sparse_matrix_train[train_ind,]
@@ -119,7 +121,7 @@ xgb_trcontrol <- caret::trainControl(
 
 
 xgbGrid <- base::expand.grid(nrounds = 100L, 
-                             max_depth = c(4, 6, 8),
+                             max_depth = c(4, 6, 8, 10),
                              colsample_bytree = c(0.1, 0.3, 0.5),
                              eta = c(0.05, 0.1, 0.5),
                              gamma= c(0.1, 0.3, 0.5),
@@ -136,7 +138,7 @@ xgb_model = caret::train(
   method = "xgbTree",
   tree_method = 'hist',
   objective = "reg:squarederror", 
-  tuneLength = 10000, 
+  tuneLength = 10000L, 
 )
 
 
@@ -232,21 +234,21 @@ params_xgb_withStateDemRatio <- list(booster = 'dart',
                    colsample_bytree = xgb_model$bestTune$colsample_bytree # number of variables per tree, typically between 0.5 - 0.9
 )
 
-# using cross-validation to find optimal nrounds parameter
-xgbcv <- xgb.cv(params = params_xgb_withStateDemRatio,
-                data = dtrain, 
-                nrounds = 150, 
-                nfold = 5,
-                showsd = T, # whether to show standard deviation of cv
-                stratified = F, 
-                print_every_n = 1, 
-                early_stopping_rounds = 50, # stop if we don't see much improvement
-                maximize = F, # should the metric be maximized?
-                verbose = 2, 
-                tree_method = 'hist')
-
-# Result of best iteration
-xgb_best_iteration_withStateDemRatio <- xgbcv$best_iteration
+# # using cross-validation to find optimal nrounds parameter
+# xgbcv <- xgb.cv(params = params_xgb_withStateDemRatio,
+#                 data = dtrain, 
+#                 nrounds = 150, 
+#                 nfold = 5,
+#                 showsd = T, # whether to show standard deviation of cv
+#                 stratified = F, 
+#                 print_every_n = 1, 
+#                 early_stopping_rounds = 50, # stop if we don't see much improvement
+#                 maximize = F, # should the metric be maximized?
+#                 verbose = 2, 
+#                 tree_method = 'hist')
+# 
+# # Result of best iteration
+# xgb_best_iteration_withStateDemRatio <- xgbcv$best_iteration
 
 
 ### MODEL 3: RUN WITH OPTIMAL PARAMETERS ###  -----------------------------
@@ -257,9 +259,10 @@ Rather it does the parallelization WITHIN a single tree by using openMP to creat
 # best is to let out the num threads, as xgboost takes all by default
 xgb_withStateDemRatio <- xgb.train(params = params_xgb_withStateDemRatio, 
                  data = dtrain, 
-                 nrounds = xgb_best_iteration_withStateDemRatio, 
+                 nrounds = 250L, 
                  watchlist = list(test = dtest, train = dtrain), 
                  maximize = F, 
+                 early_stopping_rounds = 50L, # stop if we don't see much improvement
                  eval_metric = "rmse", 
                  tree_method = 'hist') # this accelerates the process 
 

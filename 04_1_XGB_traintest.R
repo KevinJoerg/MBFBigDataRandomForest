@@ -85,8 +85,6 @@ train$is_new <- as.factor(train$is_new)
 test$is_new <- as.factor(test$is_new)
 
 # define training label = dependent variable
-
-# define for later
 train_target = as.matrix((train[,c('DemRepRatio', 'county', 'state')]))
 test_target = as.matrix((test[,c('DemRepRatio', 'county', 'state')]))
 

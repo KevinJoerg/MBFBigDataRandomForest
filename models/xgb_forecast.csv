@@ -1,343 +1,343 @@
 state,county,forecast
-alabama,de kalb,0.681887077053948
-arizona,cochise,0.687980895045185
-arizona,coconino,0.680903321665002
-arizona,maricopa,0.668713700585165
-arizona,mohave,0.684354571309939
-arizona,navajo,0.678852363438866
-arizona,pima,0.656975254669424
-arizona,pinal,0.677403861390693
-arizona,yavapai,0.679622376792535
-arizona,yuma,0.687034073255202
-california,alameda,0.663988712955924
-california,colusa,0.677808176754113
-california,contra costa,0.646725312268606
-california,el dorado,0.674446426907724
-california,fresno,0.673911620899263
-california,imperial,0.690809534932984
-california,kern,0.67359280743557
-california,kings,0.686068662831155
-california,los angeles,0.662841266328403
-california,madera,0.66094408543546
-california,marin,0.64533951932632
-california,mendocino,0.678103784014126
-california,merced,0.667758215536078
-california,monterey,0.666977566201845
-california,napa,0.680140032869945
-california,placer,0.664306277798683
-california,riverside,0.671885273971005
-california,sacramento,0.652248469629697
-california,san benito,0.685195298972109
-california,san bernardino,0.670278338433175
-california,san diego,0.663879312463877
-california,san francisco,0.645193925663445
-california,san joaquin,0.678821398698755
-california,san luis obispo,0.664231236344397
-california,san mateo,0.674766540097871
-california,santa barbara,0.671533901064997
-california,santa clara,0.668689618010917
-california,santa cruz,0.678560335853887
-california,solano,0.682377064269059
-california,sonoma,0.68297297139711
-california,stanislaus,0.65798395333976
-california,sutter,0.686044406400968
-california,tulare,0.662322722396579
-california,tuolumne,0.67071188928545
-california,ventura,0.669053253579309
-california,yolo,0.672814299637758
-colorado,alamosa,0.684752551198916
-colorado,arapahoe,0.668371831527427
-colorado,boulder,0.659100703058209
-colorado,broomfield,0.685632588952898
-colorado,denver,0.640163141195563
-colorado,el paso,0.670287228267904
-colorado,la plata,0.675679564801366
-colorado,larimer,0.652818314963347
-colorado,mesa,0.655194814352725
-colorado,montezuma,0.673523594130267
-colorado,montrose,0.6560311744205
-colorado,pueblo,0.660689538397838
-colorado,weld,0.667490855918318
-georgia,de kalb,0.659642924044531
-illinois,de kalb,0.678205101354094
-illinois,du page,0.659791804802399
-indiana,bartholomew,0.679191470497829
-indiana,daviess,0.670837677849664
-indiana,de kalb,0.672496430366953
-indiana,dearborn,0.674976428855205
-indiana,dubois,0.675494908097379
-indiana,elkhart,0.654781702725716
-indiana,hendricks,0.672029838405474
-indiana,huntington,0.65662152930802
-indiana,jennings,0.679612169527028
-indiana,kosciusko,0.657637218352754
-indiana,la porte,0.665128170361732
-indiana,porter,0.67687594636649
-indiana,posey,0.674469758394378
-indiana,ripley,0.672178612700824
-indiana,rush,0.655019864587501
-indiana,st joseph,0.663210766096341
-indiana,tippecanoe,0.66772388001477
-indiana,vanderburgh,0.676000094506508
-indiana,vigo,0.667556560571705
-indiana,warrick,0.684106902192576
-indiana,whitley,0.661523907046233
-iowa,black hawk,0.644890823802217
-iowa,cerro gordo,0.667987720705654
-iowa,des moines,0.675254867684027
-iowa,dickinson,0.6275112436312
-iowa,dubuque,0.671728936769631
-iowa,linn,0.663426555005596
-iowa,muscatine,0.673878328382284
-iowa,story,0.674698532670302
-iowa,wapello,0.683716130256653
-iowa,winneshiek,0.669523120388504
-iowa,woodbury,0.668159415945411
-kentucky,barren,0.680801822039896
-kentucky,bell,0.684912186435291
-kentucky,bourbon,0.666030777570529
-kentucky,boyd,0.682840982086551
-kentucky,boyle,0.668051511819072
-kentucky,bullitt,0.642087740953579
-kentucky,calloway,0.667692290770041
-kentucky,daviess,0.676452839641067
-kentucky,fleming,0.649954559059318
-kentucky,graves,0.6591508133631
-kentucky,greenup,0.682856142520905
-kentucky,hopkins,0.671130621433258
-kentucky,jessamine,0.674945530230584
-kentucky,kenton,0.619272928054516
-kentucky,mccracken,0.666010636532748
-kentucky,meade,0.671186134151128
-kentucky,muhlenberg,0.672106860275555
-kentucky,oldham,0.68103846723444
-kentucky,simpson,0.683675773193439
-maryland,prince georges,0.665772218360744
-maryland,st marys,0.677710140810853
-michigan,allegan,0.676842950278745
-michigan,alpena,0.679590126618426
-michigan,arenac,0.687306898671228
-michigan,branch,0.690746208259038
-michigan,delta,0.653266359309447
-michigan,dickinson,0.656571659323287
-michigan,eaton,0.669899113929074
-michigan,emmet,0.676117418039786
-michigan,genesee,0.66970126593941
-michigan,grand traverse,0.656273633510143
-michigan,gratiot,0.651169302718093
-michigan,hillsdale,0.677267807843734
-michigan,houghton,0.65704691302183
-michigan,ingham,0.651229667037787
-michigan,isabella,0.666454231420172
-michigan,kalamazoo,0.6822434867801
-michigan,kalkaska,0.650177164242999
-michigan,lapeer,0.673532585059207
-michigan,lenawee,0.671539168456476
-michigan,macomb,0.680881389338252
-michigan,midland,0.67891261018202
-michigan,missaukee,0.680765384030574
-michigan,montcalm,0.675537632130758
-michigan,muskegon,0.650218269667468
-michigan,newaygo,0.680454960823059
-michigan,oakland,0.679625972842365
-michigan,otsego,0.669101962806485
-michigan,roscommon,0.663359679557659
-michigan,saginaw,0.667665714273969
-michigan,sanilac,0.672379812259814
-michigan,shiawassee,0.682872148985228
-michigan,st joseph,0.676275058264446
-michigan,tuscola,0.676292195477906
-michigan,washtenaw,0.686398245280999
-michigan,wexford,0.674885883356663
-minnesota,aitkin,0.656074719429016
-minnesota,anoka,0.656560236470864
-minnesota,becker,0.670580517594554
-minnesota,beltrami,0.675145992461373
-minnesota,blue earth,0.672548311251923
-minnesota,carver,0.664631739077045
-minnesota,crow wing,0.655387856791196
-minnesota,dakota,0.672306974118247
-minnesota,fillmore,0.664655767115099
-minnesota,freeborn,0.643931178599114
-minnesota,goodhue,0.685291535184208
-minnesota,hennepin,0.671026300702066
-minnesota,hubbard,0.6846678887517
-minnesota,isanti,0.607417510752856
-minnesota,itasca,0.682952971756458
-minnesota,kandiyohi,0.675222015132507
-minnesota,lyon,0.657840260437557
-minnesota,mcleod,0.653455820450416
-minnesota,meeker,0.669277272263511
-minnesota,mille lacs,0.586770407790723
-minnesota,mower,0.631887716996042
-minnesota,nobles,0.665019894639651
-minnesota,olmsted,0.64700552443086
-minnesota,otter tail,0.664294196887219
-minnesota,pine,0.672782700864514
-minnesota,pipestone,0.659813941758254
-minnesota,redwood,0.630838589072227
-minnesota,rice,0.65421062848529
-minnesota,sherburne,0.672607976503053
-minnesota,st louis,0.666942208361399
-minnesota,stearns,0.667517295005012
-minnesota,wadena,0.547032405081249
-minnesota,winona,0.662143654628726
-minnesota,wright,0.67728188199977
-missouri,bates,0.690897274535635
-missouri,cape girardeau,0.669128512965796
-missouri,cole,0.678530689296515
-missouri,cooper,0.669914006664042
-missouri,dunklin,0.672778854530955
-missouri,howell,0.678627995714065
-missouri,laclede,0.676341079201253
-missouri,moniteau,0.680952757313138
-missouri,new madrid,0.6831851694491
-missouri,nodaway,0.672169799063386
-missouri,pettis,0.673454812271338
-missouri,phelps,0.665238603756025
-missouri,st francois,0.678242954327233
-missouri,st louis,0.676672939164669
-missouri,st louis city,0.620534699184827
-missouri,stoddard,0.680333020151124
-missouri,taney,0.655391676231515
-new jersey,atlantic,0.663507239221745
-new jersey,bergen,0.652691045516058
-new jersey,burlington,0.664986244846271
-new jersey,cape may,0.685816662242779
-new jersey,hudson,0.656572826405458
-new jersey,hunterdon,0.621744325859793
-new jersey,monmouth,0.667685510281932
-new jersey,morris,0.664971630178394
-new jersey,ocean,0.670534518616661
-new jersey,passaic,0.631580686820211
-new jersey,salem,0.686024424500932
-new york,bronx,0.70125204638156
-new york,broome,0.717791017036342
-new york,cattaraugus,0.737560008549028
-new york,cayuga,0.738779875554076
-new york,chautauqua,0.731192055817308
-new york,chemung,0.722501227883677
-new york,dutchess,0.72018157636515
-new york,genesee,0.728312656631162
-new york,herkimer,0.706890857455754
-new york,kings,0.677687941538379
-new york,new york,0.718428476673709
-new york,niagara,0.733805144913278
-new york,onondaga,0.728156977006491
-new york,ontario,0.71507009993634
-new york,oswego,0.71785460726341
-new york,otsego,0.730983381846856
-new york,queens,0.709466548168968
-new york,rensselaer,0.720585191697075
-new york,rockland,0.718775891421662
-new york,saratoga,0.739117002319675
-new york,schenectady,0.716433873815502
-new york,schoharie,0.726888193079263
-new york,st lawrence,0.739702049143174
-new york,steuben,0.743592978362125
-new york,tompkins,0.743059743733987
-new york,ulster,0.707050881931232
-new york,westchester,0.727059483613513
-new york,wyoming,0.73949101791909
-pennsylvania,allegheny,0.671557272590488
-pennsylvania,armstrong,0.685853013220955
-pennsylvania,berks,0.672849143582292
-pennsylvania,blair,0.68351756323913
-pennsylvania,bucks,0.658275154736989
-pennsylvania,cambria,0.683324131582465
-pennsylvania,centre,0.680315777260786
-pennsylvania,clearfield,0.673638227533122
-pennsylvania,dauphin,0.674484988186024
-pennsylvania,elk,0.67941989168596
-pennsylvania,huntingdon,0.633145136776425
-pennsylvania,indiana,0.670335197861577
-pennsylvania,juniata,0.688977730183201
-pennsylvania,lackawanna,0.66794455690464
-pennsylvania,lebanon,0.671866592755413
-pennsylvania,lehigh,0.662403652730786
-pennsylvania,luzerne,0.674736278948712
-pennsylvania,lycoming,0.668293444619509
-pennsylvania,mifflin,0.676141669426435
-pennsylvania,montour,0.675213134650028
-pennsylvania,philadelphia,0.660946898983876
-pennsylvania,schuylkill,0.679262708512973
-pennsylvania,snyder,0.677837915632917
-pennsylvania,tioga,0.669980011859873
-pennsylvania,venango,0.657629009134086
-pennsylvania,wyoming,0.688397717355882
-south carolina,aiken,0.67451570526212
-south carolina,berkeley,0.672440014150704
-south carolina,charleston,0.666190865995709
-south carolina,clarendon,0.682090110266147
-south carolina,edgefield,0.679295537600646
-south carolina,georgetown,0.678101444060041
-south carolina,greenville,0.659368834131817
-south carolina,greenwood,0.688551175629289
-south carolina,horry,0.651883493855779
-south carolina,lexington,0.664048023180131
-south carolina,orangeburg,0.678630863463049
-south carolina,spartanburg,0.678629435229122
-texas,andrews,0.686697709153999
-texas,angelina,0.687021057953877
-texas,atascosa,0.678237911573676
-texas,bastrop,0.68865626706659
-texas,bell,0.667930381053554
-texas,bexar,0.675940680180927
-texas,bowie,0.680279041322934
-texas,brazoria,0.685922678237303
-texas,brazos,0.679067215687244
-texas,burnet,0.686723603622746
-texas,callahan,0.688752799611731
-texas,collin,0.660546634634336
-texas,colorado,0.686860292249329
-texas,comal,0.675129142542966
-texas,cooke,0.687648655579328
-texas,coryell,0.687220587950795
-texas,denton,0.674654177658562
-texas,eastland,0.67013384224078
-texas,ector,0.685225937536907
-texas,el paso,0.672778219363218
-texas,falls,0.686113509110042
-texas,fort bend,0.679421403999324
-texas,galveston,0.665933873796422
-texas,gray,0.678098445179082
-texas,gregg,0.676889127771679
-texas,grimes,0.685943189288388
-texas,hays,0.673237892090221
-texas,hockley,0.685658093885327
-texas,hood,0.684712702123374
-texas,hopkins,0.681610295276963
-texas,hunt,0.682056177627422
-texas,kaufman,0.677508251991735
-texas,kerr,0.686023026704788
-texas,kleberg,0.687043587347636
-texas,lubbock,0.668598388072651
-texas,maverick,0.694235455181639
-texas,mclennan,0.677209476800565
-texas,midland,0.672792197746792
-texas,milam,0.676831435120624
-texas,montague,0.675909277451397
-texas,nacogdoches,0.668941588796808
-texas,navarro,0.687753177488955
-texas,nueces,0.675135315592154
-texas,panola,0.690620116649136
-texas,parker,0.686571997983115
-texas,potter,0.665192248069249
-texas,randall,0.684999094500712
-texas,rockwall,0.685437760744358
-texas,san patricio,0.681918623355719
-texas,scurry,0.683208039828709
-texas,tarrant,0.667831365531964
-texas,titus,0.685189908107941
-texas,tom green,0.679177484764528
-texas,travis,0.659977117841215
-texas,val verde,0.691150727204636
-texas,van zandt,0.688359379768372
-texas,victoria,0.687131344608238
-texas,webb,0.667188967902993
-texas,wharton,0.688398189842701
-texas,wichita,0.676292133536832
-texas,wilbarger,0.689871452885233
-virginia,hampton,0.667393350733162
-virginia,newport news,0.662959734434386
-virginia,virginia beach,0.649040956986986
+alabama,de kalb,0.383993407930007
+arizona,cochise,0.21877143599456
+arizona,coconino,0.212668930631521
+arizona,maricopa,0.22537491772829
+arizona,mohave,0.211817768461393
+arizona,navajo,0.216067279029883
+arizona,pima,0.218392369671819
+arizona,pinal,0.216203889410411
+arizona,yavapai,0.214842723821383
+arizona,yuma,0.219609870571383
+california,alameda,0.604242095101862
+california,colusa,0.5780068781591
+california,contra costa,0.59144901209551
+california,el dorado,0.550056336210533
+california,fresno,0.5876755636207
+california,imperial,0.595170608784373
+california,kern,0.582851466283071
+california,kings,0.596278682649595
+california,los angeles,0.604542852089011
+california,madera,0.592161821214717
+california,marin,0.606412492086353
+california,mendocino,0.581893770222736
+california,merced,0.591952877465859
+california,monterey,0.588296844613093
+california,napa,0.574063886822117
+california,placer,0.588704202954147
+california,riverside,0.595926119059394
+california,sacramento,0.592455545073709
+california,san benito,0.578782333939086
+california,san bernardino,0.597987841146589
+california,san diego,0.6007698705514
+california,san francisco,0.611915061882335
+california,san joaquin,0.596856218669486
+california,san luis obispo,0.57716982191668
+california,san mateo,0.586944995960868
+california,santa barbara,0.594100113736503
+california,santa clara,0.598902189207113
+california,santa cruz,0.582652273252356
+california,solano,0.589011221156741
+california,sonoma,0.581367664078431
+california,stanislaus,0.587936330825817
+california,sutter,0.595701416432486
+california,tulare,0.592657203216688
+california,tuolumne,0.573570864838223
+california,ventura,0.605239734304005
+california,yolo,0.601147639525088
+colorado,alamosa,0.366562898149927
+colorado,arapahoe,0.405142999068552
+colorado,boulder,0.386442568589019
+colorado,broomfield,0.401665735680595
+colorado,denver,0.400771692234956
+colorado,el paso,0.392601822865184
+colorado,la plata,0.393363221829115
+colorado,larimer,0.389226934729845
+colorado,mesa,0.384147198522518
+colorado,montezuma,0.376014079596545
+colorado,montrose,0.390564863170896
+colorado,pueblo,0.389802964580508
+colorado,weld,0.396103608161967
+georgia,de kalb,0.528125423269653
+illinois,de kalb,0.529521366949944
+illinois,du page,0.585287718464293
+indiana,bartholomew,0.403853400574673
+indiana,daviess,0.380241589192991
+indiana,de kalb,0.383839777627281
+indiana,dearborn,0.389611405437436
+indiana,dubois,0.404995920800806
+indiana,elkhart,0.396425206598893
+indiana,hendricks,0.416913635658495
+indiana,huntington,0.392116352156097
+indiana,jennings,0.39145903473031
+indiana,kosciusko,0.393127223821143
+indiana,la porte,0.392627932755641
+indiana,porter,0.388656251400038
+indiana,posey,0.395339043447081
+indiana,ripley,0.390245627868792
+indiana,rush,0.383432454401904
+indiana,st joseph,0.400417249212161
+indiana,tippecanoe,0.400562964916673
+indiana,vanderburgh,0.409081040031104
+indiana,vigo,0.398650242973651
+indiana,warrick,0.40572195169263
+indiana,whitley,0.383093315575804
+iowa,black hawk,0.359093495625722
+iowa,cerro gordo,0.347688084684635
+iowa,des moines,0.336556907743216
+iowa,dickinson,0.354551966233951
+iowa,dubuque,0.3475208597601
+iowa,linn,0.352285670560328
+iowa,muscatine,0.359105335484291
+iowa,story,0.362734182800218
+iowa,wapello,0.355057409114954
+iowa,winneshiek,0.367446416570235
+iowa,woodbury,0.339669604576193
+kentucky,barren,0.378103265862265
+kentucky,bell,0.373399472981691
+kentucky,bourbon,0.355650892337927
+kentucky,boyd,0.381074164705637
+kentucky,boyle,0.368299375710892
+kentucky,bullitt,0.377981922885244
+kentucky,calloway,0.388901974703815
+kentucky,daviess,0.365622588450993
+kentucky,fleming,0.370779546028977
+kentucky,graves,0.377165743338882
+kentucky,greenup,0.355348918386685
+kentucky,hopkins,0.381772391178778
+kentucky,jessamine,0.373719538424326
+kentucky,kenton,0.408235276754086
+kentucky,mccracken,0.374969341313397
+kentucky,meade,0.371278070287617
+kentucky,muhlenberg,0.362628817782366
+kentucky,oldham,0.374986956544806
+kentucky,simpson,0.350362462426225
+maryland,prince georges,0.583531271087279
+maryland,st marys,0.569435639981416
+michigan,allegan,0.358825573033787
+michigan,alpena,0.342234241994137
+michigan,arenac,0.359760230546957
+michigan,branch,0.351324691091265
+michigan,delta,0.359041878567313
+michigan,dickinson,0.342588367323353
+michigan,eaton,0.356903502652439
+michigan,emmet,0.377369673824624
+michigan,genesee,0.351131781396576
+michigan,grand traverse,0.360577633856116
+michigan,gratiot,0.355126458996286
+michigan,hillsdale,0.352385668730249
+michigan,houghton,0.353745450126639
+michigan,ingham,0.370490777486327
+michigan,isabella,0.357234190766213
+michigan,kalamazoo,0.366768348836183
+michigan,kalkaska,0.352029674714155
+michigan,lapeer,0.343946289202553
+michigan,lenawee,0.359448015904255
+michigan,macomb,0.353913060521486
+michigan,midland,0.356539068957333
+michigan,missaukee,0.353725843059206
+michigan,montcalm,0.352056529324965
+michigan,muskegon,0.360707298368663
+michigan,newaygo,0.353505673885346
+michigan,oakland,0.355418461212894
+michigan,otsego,0.35328460268095
+michigan,roscommon,0.355478159365831
+michigan,saginaw,0.355522497538807
+michigan,sanilac,0.352504501849304
+michigan,shiawassee,0.348665194665069
+michigan,st joseph,0.346889509329105
+michigan,tuscola,0.348592905108543
+michigan,washtenaw,0.348868776293964
+michigan,wexford,0.358124205533494
+minnesota,aitkin,0.31437128674984
+minnesota,anoka,0.321540898944264
+minnesota,becker,0.347492891449888
+minnesota,beltrami,0.320726174642058
+minnesota,blue earth,0.336035189678666
+minnesota,carver,0.326751380795386
+minnesota,crow wing,0.325728663176752
+minnesota,dakota,0.324230106521179
+minnesota,fillmore,0.328618023012366
+minnesota,freeborn,0.321967553021838
+minnesota,goodhue,0.326586164323624
+minnesota,hennepin,0.324920801130894
+minnesota,hubbard,0.317696153871284
+minnesota,isanti,0.317363211537298
+minnesota,itasca,0.317803221816818
+minnesota,kandiyohi,0.32925784625113
+minnesota,lyon,0.319163229077908
+minnesota,mcleod,0.316221076861406
+minnesota,meeker,0.317776039853448
+minnesota,mille lacs,0.321358790864115
+minnesota,mower,0.318415761621375
+minnesota,nobles,0.322167067365213
+minnesota,olmsted,0.323804772402867
+minnesota,otter tail,0.324108029748742
+minnesota,pine,0.338097442783902
+minnesota,pipestone,0.320635912336152
+minnesota,redwood,0.312074330449104
+minnesota,rice,0.321525825670973
+minnesota,sherburne,0.320672054980377
+minnesota,st louis,0.323687989029682
+minnesota,stearns,0.317763608835042
+minnesota,wadena,0.316189240841638
+minnesota,winona,0.321923532884968
+minnesota,wright,0.317545881455912
+missouri,bates,0.362280280434567
+missouri,cape girardeau,0.326361643825631
+missouri,cole,0.323839399024196
+missouri,cooper,0.327412441895719
+missouri,dunklin,0.340203483308119
+missouri,howell,0.332203144027341
+missouri,laclede,0.332760243989192
+missouri,moniteau,0.333189477239336
+missouri,new madrid,0.344438247866445
+missouri,nodaway,0.320573955523868
+missouri,pettis,0.32632749797959
+missouri,phelps,0.326808387969995
+missouri,st francois,0.328081785584215
+missouri,st louis,0.329469223229801
+missouri,st louis city,0.332948037154734
+missouri,stoddard,0.331290322103242
+missouri,taney,0.335225326436784
+new jersey,atlantic,0.469991160056225
+new jersey,bergen,0.476997110116211
+new jersey,burlington,0.474576389593037
+new jersey,cape may,0.514644973696424
+new jersey,hudson,0.493651154563311
+new jersey,hunterdon,0.438287782309384
+new jersey,monmouth,0.47240352775727
+new jersey,morris,0.480428813072466
+new jersey,ocean,0.471165606214762
+new jersey,passaic,0.465774470570524
+new jersey,salem,0.444666773753059
+new york,bronx,0.470604624511065
+new york,broome,0.478735496770197
+new york,cattaraugus,0.486309548150058
+new york,cayuga,0.49321813911473
+new york,chautauqua,0.485297148433225
+new york,chemung,0.488250414394353
+new york,dutchess,0.472033387532432
+new york,genesee,0.475984781338454
+new york,herkimer,0.481595724821091
+new york,kings,0.481876047790852
+new york,new york,0.437112331889861
+new york,niagara,0.481340848596911
+new york,onondaga,0.491048504725315
+new york,ontario,0.489578797056481
+new york,oswego,0.480653539769487
+new york,otsego,0.469944766061059
+new york,queens,0.475920641731131
+new york,rensselaer,0.487976886206734
+new york,rockland,0.473588954758813
+new york,saratoga,0.478110524823571
+new york,schenectady,0.487428257148043
+new york,schoharie,0.46496016279725
+new york,st lawrence,0.487081288449905
+new york,steuben,0.502670826120551
+new york,tompkins,0.475487982247436
+new york,ulster,0.484782154163414
+new york,westchester,0.4698057184013
+new york,wyoming,0.474403377453886
+pennsylvania,allegheny,0.451466354578431
+pennsylvania,armstrong,0.426324791517578
+pennsylvania,berks,0.45669605448475
+pennsylvania,blair,0.451507595749305
+pennsylvania,bucks,0.463115319879908
+pennsylvania,cambria,0.459056628968915
+pennsylvania,centre,0.441748192697574
+pennsylvania,clearfield,0.446078962152773
+pennsylvania,dauphin,0.447082016450256
+pennsylvania,elk,0.429662716873525
+pennsylvania,huntingdon,0.443313619068691
+pennsylvania,indiana,0.44263053293008
+pennsylvania,juniata,0.446035623322916
+pennsylvania,lackawanna,0.453426362497533
+pennsylvania,lebanon,0.456863722208309
+pennsylvania,lehigh,0.460833588484922
+pennsylvania,luzerne,0.456380599716943
+pennsylvania,lycoming,0.456626650816718
+pennsylvania,mifflin,0.446386513150769
+pennsylvania,montour,0.427970453284004
+pennsylvania,philadelphia,0.46174398577464
+pennsylvania,schuylkill,0.42305511857552
+pennsylvania,snyder,0.449839129358873
+pennsylvania,tioga,0.432249987913557
+pennsylvania,venango,0.447583659559257
+pennsylvania,wyoming,0.433725736485232
+south carolina,aiken,0.344073463293344
+south carolina,berkeley,0.339060238665079
+south carolina,charleston,0.345469874300361
+south carolina,clarendon,0.342484147900744
+south carolina,edgefield,0.346569337715974
+south carolina,georgetown,0.348883108021467
+south carolina,greenville,0.346064692775579
+south carolina,greenwood,0.331934611031736
+south carolina,horry,0.344287377905246
+south carolina,lexington,0.344447007949609
+south carolina,orangeburg,0.337230801254838
+south carolina,spartanburg,0.339831787616687
+texas,andrews,0.371040752394633
+texas,angelina,0.389081628778867
+texas,atascosa,0.368146629989609
+texas,bastrop,0.390933025666999
+texas,bell,0.387742664340822
+texas,bexar,0.385076361301296
+texas,bowie,0.391799360641229
+texas,brazoria,0.383468109056232
+texas,brazos,0.368082634508369
+texas,burnet,0.373981544394483
+texas,callahan,0.383105764837609
+texas,collin,0.379455712453886
+texas,colorado,0.378184019536762
+texas,comal,0.385981334502891
+texas,cooke,0.370215452500503
+texas,coryell,0.379789850040644
+texas,denton,0.375905034298742
+texas,eastland,0.381005396536731
+texas,ector,0.373416351593346
+texas,el paso,0.381113823848065
+texas,falls,0.390460542553947
+texas,fort bend,0.384013757453331
+texas,galveston,0.397418273210319
+texas,gray,0.374184654790814
+texas,gregg,0.382461660937769
+texas,grimes,0.395596972283195
+texas,hays,0.373866176320891
+texas,hockley,0.388910334795079
+texas,hood,0.374582165338042
+texas,hopkins,0.380810345156809
+texas,hunt,0.379005622858438
+texas,kaufman,0.378144042779557
+texas,kerr,0.376311433176662
+texas,kleberg,0.378245627364287
+texas,lubbock,0.379190828603142
+texas,maverick,0.379707010115607
+texas,mclennan,0.381199893873409
+texas,midland,0.39186894718943
+texas,milam,0.381004147166791
+texas,montague,0.373344993514564
+texas,nacogdoches,0.379365139811702
+texas,navarro,0.377798872062573
+texas,nueces,0.373148836965767
+texas,panola,0.363594869772593
+texas,parker,0.383104864316327
+texas,potter,0.376360850027077
+texas,randall,0.376239855927608
+texas,rockwall,0.377939035373231
+texas,san patricio,0.363466141442967
+texas,scurry,0.38320776669919
+texas,tarrant,0.38369181198293
+texas,titus,0.371145688022945
+texas,tom green,0.384217681873066
+texas,travis,0.388156644784479
+texas,val verde,0.379504897463869
+texas,van zandt,0.372731288917634
+texas,victoria,0.379438287278273
+texas,webb,0.383235786196797
+texas,wharton,0.368868197128177
+texas,wichita,0.375960208659102
+texas,wilbarger,0.367037784158092
+virginia,hampton,0.556153596244835
+virginia,newport news,0.563911069774992
+virginia,virginia beach,0.569768263927478
