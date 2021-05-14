@@ -78,7 +78,7 @@ r2_xgb <- R2(DemRepRatiosXGBEvaluate$actual, DemRepRatiosXGBEvaluate$predicted)
 r2_adjusted_xgb <- adjusted_R2(DemRepRatiosXGBEvaluate$actual, DemRepRatiosXGBEvaluate$predicted, n_observations, n_variables)
 rmse_xgb <- rmse(DemRepRatiosXGBEvaluate$actual, DemRepRatiosXGBEvaluate$predicted)
 xgb_metrics_out_of_sample <- c(r2_xgb, r2_adjusted_xgb, rmse_xgb)
-xgb_computation_time <- '2.2 Hours'
+xgb_computation_time <- '63.9 Minutes'
 
 # Create a dataframe of the observations
 performance_metrics <- data.frame(matrix(c(ols_metrics_in_sample, ols_metrics_out_of_sample, ols_computation_time, xgb_metrics_in_sample, xgb_metrics_out_of_sample, xgb_computation_time), ncol=2))
