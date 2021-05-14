@@ -141,51 +141,5 @@ save.ffdf(carListingsClean, dir = './ffdfClean', overwrite = TRUE)
 # end the timer
 toc()
 
-## Analysis ********************************************************************
-# 
-# # Load the clean data
-# rm(list=ls())
-# load.ffdf(dir='./ffdfClean')
-# 
-# # Create a map of the listings, to show the distribution
-# 
-# # Leaflet needs numeric vectors
-# map.lat <- carListingsClean[['latitude']][]
-# map.long <- carListingsClean[['longitude']][]
-# map.ratios <- carListingsClean[['DemRepRatio']][]
-# 
-# class(map.ratios)
-# 
-# # Only show 10k random listings, for performance
-# samp <- sample(1:length(map.lat), 10000)
-# map.lat <- map.lat[samp]
-# map.long <- map.long[samp]
-# map.ratios <- map.ratios[samp]
-# 
-# # Create a color range for the markers
-# pal.quantile <- colorQuantile("RdYlBu", 
-#                               domain =  map.ratios, reverse = FALSE, n = 10)
-# colors.quant <- pal.quantile(map.ratios)
-# 
-# # Simple visualization
-# map <- leaflet() %>%
-#   # Set view on center of listings
-#   setView(lng = (max(map.long) + min(map.long)) / 2, lat = (max(map.lat) + min(map.lat)) / 2, zoom = 3) %>%
-#   # Add a custom base map
-#   addProviderTiles(providers$Stamen.TonerLite)
-# 
-# # Add the data points as circles on the map, also add a legend
-# map <- addCircles(map, lng = map.long,
-#                   lat = map.lat,
-#                   radius = 400,
-#                   stroke = F, fillOpacity = 0.45, fill = T, 
-#                   fillColor =  colors.quant) %>%
-#   addLegend(pal = pal.quantile, values = map.ratios, opacity = 1, 
-#             title = "Dem to Rep Vote Ratio")
-# 
-# # Show the map
-# map
-
-
 
 
