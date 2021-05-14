@@ -50,10 +50,7 @@ load.ffdf(dir='./ffdfClean2')
 carListingsClean.forecast <- carListingsClean[is.na(carListingsClean$DemRepRatio), ]
 
 # for performance reasons
-#carListingsClean <- carListingsClean[1:10000,]
-
-# delete columns we don't need for the regression
-#carListingsClean$county <- NULL
+carListingsClean <- carListingsClean[1:1000,]
 
 # omit the NAs for XGBoost
 carListingsClean <- na.omit(carListingsClean)
@@ -308,7 +305,6 @@ xgb_pred_train.df$index <- as.numeric(rownames(xgb_pred_train.df))
 xgb_pred_train.df <- left_join(xgb_pred_train.df, county_train, by = 'index')
 xgb_pred_train.df <- xgb_pred_train.df %>% select(-index)
 colnames(xgb_pred_train.df) <- c('actual', 'predicted', 'state', 'county')
-head(xgb_pred_train.df)
 
 # count number of forecast listings per state
 forecast.count <- xgb_pred_train.df %>%
@@ -418,8 +414,6 @@ plot_v3
 
 ### TESTING THE MODEL ON DATA WITH NO OBSERVATIONS FOR DEM-REP-RATIOS ###--------------------------------------------
 
-# remove not needed values
-#rm(list=setdiff(ls(), c("xgb_withStateDemRatio", 'xgb_withStateDemRatio', 'params_xgb_withStateDemRatio', 'results_xgb_withStateDemRatio', 'carListingsClean.forecast', 'xgb_best_iteration_withStateDemRatio')))
 gc()
 
 # prepare dataframe before prediction
@@ -442,9 +436,6 @@ matrix_forecast <- model.matrix(~.-1, data = carListingsClean.forecast)
 colnames(matrix_forecast)
 index_new <- matrix_forecast[,'index']
 matrix_forecast <- matrix_forecast[,-ncol(matrix_forecast)] 
-
-ncol(sparse_matrix_train)
-ncol(matrix_forecast)
 
 # predict values
 forecast <- data.table(predict(xgb_withStateDemRatio, matrix_forecast))
