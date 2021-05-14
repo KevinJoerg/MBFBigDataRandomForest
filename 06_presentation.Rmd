@@ -1,6 +1,6 @@
 ---
 title: "Used car data as predictor for US-Presidential election outcomes"
-author: "**Group Random Forest**: Kevin Joerg, Moritz Dändliker, Tim Graf"
+author: "**Group Random Forest**: Kevin Jörg, Moritz Dändliker, Tim Graf"
 date: "Mai 20^th^ 2021"
 output:  
   ioslides_presentation:
@@ -77,12 +77,10 @@ map <- plotUSVotingData(DemRepRatiosFullMap)
 
 ## Agenda
 1. Introduction
-2. Data gathering & cleaning
-3. Descriptive statistics
-4. Analytical approaches
-5. Linear regression coefficients
-6. XGBoost parameter importance
-7. Results with XGBoost prediction
+2. Data gathering, cleaning & descriptives
+3. Methodology
+4. Linear regression and XGBoost results
+5. XGBoost forecast
 
 ## Introduction
 
@@ -233,31 +231,27 @@ $\frac{democratic\:votes}{democratic\:votes + republican\:votes}$
 
 ## Analytical approaches
 
-**Linear regression** 
-
-Normalized values were used
+**Linear regression:** normalized values were used
   
   - on CPU
   - on GPU
     - gpuLm function from package 'GPUtools'
     - CUDA for NVIDIA GPUs *(downfall: does not work on other GPUs)*
 
-**XGBoost**
-
-Gradient boosting tree-technique using parallelization of computation by default & deriving predictions from bootstrap aggregation
+**XGBoost:** gradient boosting tree-technique using parallelization of computation by default & deriving predictions from bootstrap aggregation
 
   - In RAM with approximated solutions ("hist" method)
     - Parallelized hyperparameter optimization
   - Out-of-Memory ("hist" method)
 
 
-## Linear regression coefficients and robustness
+## Robust linear regression coefficients 
 
 ```{r mysize=TRUE, size='tiny'}
 ols.coefficients
 ```
 
-## XGBoost parameter importance plot
+## XGBoost feature importance plot
 <center>
 ![](./plots/plot_xgb_importance_withState.png){width=70%}
 </center>
@@ -269,7 +263,7 @@ ols.coefficients
 performance_metrics
 ```
 
-## Results with XGBoost prediction
+## Forecast with XGBoost
 
 Prediction of Dem_Rep_Ratio only for counties where results were not yet fully processed by the MIT election lab
 
